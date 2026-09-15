@@ -1,0 +1,97 @@
+name: LocalLoom
+options:
+  bundleIdPrefix: com.localloom
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)"
+    CODE_SIGN_IDENTITY[sdk=macosx*]: "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)"
+    DEVELOPMENT_TEAM: X93VLP8U9X
+    PROVISIONING_PROFILE_SPECIFIER: ""
+    ENABLE_HARDENED_RUNTIME: YES
+    ENABLE_APP_SANDBOX: NO
+    COMBINE_HIDPI_IMAGES: YES
+packages:
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: "2.0.0"
+targets:
+  LocalLoom:
+    type: application
+    platform: macOS
+    sources:
+      - path: LocalLoom
+        excludes:
+          - "**/.DS_Store"
+    resources:
+      - path: LocalLoom/Resources
+        optional: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.localloom.app
+        PRODUCT_NAME: LocalLoom
+        INFOPLIST_FILE: LocalLoom/Info.plist
+        CODE_SIGN_ENTITLEMENTS: LocalLoom/LocalLoom.entitlements
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "F0E68E2139D99E40A51186407C21E70CC3E43060"
+        DEVELOPMENT_TEAM: X93VLP8U9X
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_APP_SANDBOX: NO
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+        GENERATE_INFOPLIST_FILE: NO
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        SWIFT_STRICT_CONCURRENCY: complete
+    dependencies:
+      - package: KeyboardShortcuts
+    scheme:
+      testTargets:
+        - LocalLoomTests
+        - LocalLoomIntegrationTests
+  LocalLoomTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - LocalLoomTests
+    dependencies:
+      - target: LocalLoom
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.localloom.tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "F0E68E2139D99E40A51186407C21E70CC3E43060"
+        DEVELOPMENT_TEAM: X93VLP8U9X
+  LocalLoomIntegrationTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - LocalLoomIntegrationTests
+    dependencies:
+      - target: LocalLoom
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.localloom.integrationtests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "F0E68E2139D99E40A51186407C21E70CC3E43060"
+        DEVELOPMENT_TEAM: X93VLP8U9X
+schemes:
+  LocalLoom:
+    build:
+      targets:
+        LocalLoom: all
+        LocalLoomTests: [test]
+        LocalLoomIntegrationTests: [test]
+    test:
+      targets:
+        - LocalLoomTests
+        - LocalLoomIntegrationTests
+    run:
+      config: Debug
