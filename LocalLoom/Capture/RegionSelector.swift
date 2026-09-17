@@ -274,7 +274,20 @@ private final class RegionSelectionView: NSView {
     private var dragCurrent: CGPoint?
     private let dimmingLayer = CALayer()
     private let borderLayer = CAShapeLayer()
-    private let readoutLabel = NSTextField(labelWithString: "")
+    private let handleLayers: [CALayer] = (0..<8).map { _ in
+        let layer = CALayer()
+        layer.backgroundColor = NSColor.white.cgColor
+        layer.borderColor = NSColor.black.withAlphaComponent(0.35).cgColor
+        layer.borderWidth = 0.5
+        layer.cornerRadius = 1
+        layer.isHidden = true
+        return layer
+    }
+    private let hintLabel = NSTextField(labelWithString: "Click and drag to select a region")
+    private let toolbar = NSStackView()
+    private let sizeLabel = NSTextField(labelWithString: "0 × 0")
+    private let cancelButton = NSButton()
+    private let confirmButton = NSButton()
 
     var currentSelection: CGRect? {
         guard let start = dragStart, let current = dragCurrent else { return nil }
@@ -291,24 +304,60 @@ private final class RegionSelectionView: NSView {
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
 
-        dimmingLayer.backgroundColor = NSColor.black.withAlphaComponent(0.35).cgColor
+        dimmingLayer.backgroundColor = NSColor.black.withAlphaComponent(0.5).cgColor
         layer?.addSublayer(dimmingLayer)
 
         borderLayer.fillColor = NSColor.clear.cgColor
-        borderLayer.strokeColor = NSColor.systemRed.cgColor
+        borderLayer.strokeColor = NSColor.white.cgColor
         borderLayer.lineWidth = 2
-        borderLayer.lineDashPattern = [6, 4]
         layer?.addSublayer(borderLayer)
 
-        readoutLabel.font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
-        readoutLabel.textColor = .white
-        readoutLabel.backgroundColor = NSColor.black.withAlphaComponent(0.7)
-        readoutLabel.drawsBackground = true
-        readoutLabel.isBordered = false
-        readoutLabel.isEditable = false
-        readoutLabel.alignment = .center
-        readoutLabel.isHidden = true
-        addSubview(readoutLabel)
+        for handle in handleLayers {
+            layer?.addSublayer(handle)
+        }
+
+        hintLabel.font = NSFont.systemFont(ofSize: 15, weight: .medium)
+        hintLabel.textColor = .white
+        hintLabel.backgroundColor = NSColor.black.withAlphaComponent(0.45)
+        hintLabel.drawsBackground = true
+        hintLabel.isBordered = false
+        hintLabel.isEditable = false
+        hintLabel.alignment = .center
+        addSubview(hintLabel)
+
+        sizeLabel.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        sizeLabel.textColor = .white
+        sizeLabel.backgroundColor = .clear
+        sizeLabel.isBordered = false
+        sizeLabel.isEditable = false
+        sizeLabel.alignment = .center
+
+        cancelButton.title = "Cancel"
+        cancelButton.bezelStyle = .rounded
+        cancelButton.target = self
+        cancelButton.action = #selector(handleCancel)
+
+        confirmButton.title = "Confirm"
+        confirmButton.bezelStyle = .rounded
+        confirmButton.contentTintColor = .white
+        confirmButton.bezelColor = NSColor(red: 0.89, green: 0.16, blue: 0.18, alpha: 1)
+        confirmButton.target = self
+        confirmButton.action = #selector(handleConfirm)
+        confirmButton.keyEquivalent = "\r"
+
+        toolbar.orientation = .horizontal
+        toolbar.spacing = 10
+        toolbar.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        toolbar.wantsLayer = true
+        toolbar.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.78).cgColor
+        toolbar.layer?.cornerRadius = 10
+        toolbar.addArrangedSubview(cancelButton)
+        toolbar.addArrangedSubview(sizeLabel)
+        toolbar.addArrangedSubview(confirmButton)
+        toolbar.isHidden = true
+        addSubview(toolbar)
+
+        layoutChrome()
     }
 
     @available(*, unavailable)
@@ -319,13 +368,24 @@ private final class RegionSelectionView: NSView {
     func reset() {
         dragStart = nil
         dragCurrent = nil
-        readoutLabel.isHidden = true
+        toolbar.isHidden = true
+        hintLabel.isHidden = false
+        for handle in handleLayers { handle.isHidden = true }
         updateLayers()
+        layoutChrome()
     }
 
     func confirmCurrent() {
         guard let rect = currentSelection, rect.width >= 1, rect.height >= 1 else { return }
         onConfirm?(rect.integral)
+    }
+
+    @objc private func handleCancel() {
+        onCancel?()
+    }
+
+    @objc private func handleConfirm() {
+        confirmCurrent()
     }
 
     override func resetCursorRects() {
@@ -335,11 +395,20 @@ private final class RegionSelectionView: NSView {
     override func layout() {
         super.layout()
         dimmingLayer.frame = bounds
+        layoutChrome()
         updateLayers()
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if !toolbar.isHidden, toolbar.frame.contains(point) {
+            return toolbar.hitTest(convert(point, to: toolbar)) ?? toolbar
+        }
+        return super.hitTest(point)
     }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        if !toolbar.isHidden, toolbar.frame.contains(point) { return }
         dragStart = point
         dragCurrent = point
         updateLayers()
@@ -353,18 +422,37 @@ private final class RegionSelectionView: NSView {
     override func mouseUp(with event: NSEvent) {
         dragCurrent = convert(event.locationInWindow, from: nil)
         updateLayers()
-        // Confirm on mouse-up if the drag produced a usable rect; Enter also works.
-        if let rect = currentSelection, rect.width >= 4, rect.height >= 4 {
-            confirmCurrent()
-        }
+    }
+
+    private func layoutChrome() {
+        hintLabel.sizeToFit()
+        let hintSize = NSSize(width: hintLabel.bounds.width + 24, height: hintLabel.bounds.height + 10)
+        hintLabel.frame = NSRect(
+            x: bounds.midX - hintSize.width / 2,
+            y: bounds.maxY - hintSize.height - 36,
+            width: hintSize.width,
+            height: hintSize.height
+        )
+        hintLabel.layer?.cornerRadius = 8
+
+        toolbar.layoutSubtreeIfNeeded()
+        let toolbarSize = NSSize(width: max(280, toolbar.fittingSize.width), height: 44)
+        toolbar.frame = NSRect(
+            x: bounds.midX - toolbarSize.width / 2,
+            y: 28,
+            width: toolbarSize.width,
+            height: toolbarSize.height
+        )
     }
 
     private func updateLayers() {
         guard let rect = currentSelection, rect.width > 0, rect.height > 0 else {
             dimmingLayer.mask = nil
-            dimmingLayer.backgroundColor = NSColor.black.withAlphaComponent(0.35).cgColor
+            dimmingLayer.backgroundColor = NSColor.black.withAlphaComponent(0.5).cgColor
             borderLayer.path = nil
-            readoutLabel.isHidden = true
+            toolbar.isHidden = true
+            hintLabel.isHidden = false
+            for handle in handleLayers { handle.isHidden = true }
             return
         }
 
@@ -376,22 +464,38 @@ private final class RegionSelectionView: NSView {
         mask.path = holePath
         dimmingLayer.mask = mask
         dimmingLayer.frame = bounds
-        dimmingLayer.backgroundColor = NSColor.black.withAlphaComponent(0.45).cgColor
+        dimmingLayer.backgroundColor = NSColor.black.withAlphaComponent(0.55).cgColor
 
         borderLayer.path = CGPath(rect: rect, transform: nil)
 
+        let handleSize: CGFloat = 8
+        let points: [CGPoint] = [
+            CGPoint(x: rect.minX, y: rect.minY),
+            CGPoint(x: rect.midX, y: rect.minY),
+            CGPoint(x: rect.maxX, y: rect.minY),
+            CGPoint(x: rect.minX, y: rect.midY),
+            CGPoint(x: rect.maxX, y: rect.midY),
+            CGPoint(x: rect.minX, y: rect.maxY),
+            CGPoint(x: rect.midX, y: rect.maxY),
+            CGPoint(x: rect.maxX, y: rect.maxY)
+        ]
+        for (index, point) in points.enumerated() {
+            let handle = handleLayers[index]
+            handle.isHidden = false
+            handle.frame = CGRect(
+                x: point.x - handleSize / 2,
+                y: point.y - handleSize / 2,
+                width: handleSize,
+                height: handleSize
+            )
+        }
+
         let w = Int(rect.width.rounded())
         let h = Int(rect.height.rounded())
-        readoutLabel.stringValue = "  \(w) × \(h)  "
-        readoutLabel.sizeToFit()
-        var labelOrigin = CGPoint(x: rect.midX - readoutLabel.bounds.width / 2, y: rect.maxY + 8)
-        // Keep readout on-screen within the overlay.
-        labelOrigin.x = max(8, min(labelOrigin.x, bounds.width - readoutLabel.bounds.width - 8))
-        if labelOrigin.y + readoutLabel.bounds.height > bounds.height - 8 {
-            labelOrigin.y = rect.minY - readoutLabel.bounds.height - 8
-        }
-        readoutLabel.setFrameOrigin(labelOrigin)
-        readoutLabel.isHidden = false
+        sizeLabel.stringValue = "\(w) × \(h)"
+        toolbar.isHidden = false
+        hintLabel.isHidden = true
+        layoutChrome()
     }
 }
 

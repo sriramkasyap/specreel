@@ -50,9 +50,9 @@ struct RecordingConfigView: View {
     @ViewBuilder
     private func compactBody(config: RecordingConfig) -> some View {
         @Bindable var config = config
-        Form {
-            sourceSection(config: config)
+        VStack(alignment: .leading, spacing: 12) {
             permissionErrorBanner
+            sourceSection(config: config)
             Toggle("Camera", isOn: $config.includeWebcam)
             if config.includeWebcam {
                 cameraPicker(config: config)
@@ -62,9 +62,8 @@ struct RecordingConfigView: View {
             if config.includeMic {
                 micPicker(config: config)
             }
-            Toggle("System Audio", isOn: $config.includeSystemAudio)
+            Toggle("System audio", isOn: $config.includeSystemAudio)
         }
-        .formStyle(.grouped)
     }
 
     // MARK: - Expanded
@@ -73,97 +72,87 @@ struct RecordingConfigView: View {
     private func expandedBody(config: RecordingConfig) -> some View {
         @Bindable var config = config
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Recording Setup")
-                    .font(.title2.weight(.semibold))
-
+            VStack(alignment: .leading, spacing: 18) {
                 permissionErrorBanner
 
-                GroupBox("Source") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        sourceSection(config: config)
-
-                        Button {
-                            Task { await refreshDevicesAndSources() }
-                        } label: {
-                            Label(
-                                isLoadingSources ? "Refreshing…" : "Refresh Sources",
-                                systemImage: "arrow.clockwise"
-                            )
-                        }
-                        .disabled(isLoadingSources)
+                inspectorSection("Source") {
+                    sourceSection(config: config)
+                    Button {
+                        Task { await refreshDevicesAndSources() }
+                    } label: {
+                        Label(
+                            isLoadingSources ? "Refreshing…" : "Refresh",
+                            systemImage: "arrow.clockwise"
+                        )
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(4)
+                    .disabled(isLoadingSources)
+                    .controlSize(.small)
                 }
 
-                GroupBox("Camera & PiP") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Toggle("Include webcam", isOn: $config.includeWebcam)
-                        if config.includeWebcam {
-                            cameraPicker(config: config)
-                            WebcamPreviewView(deviceID: config.cameraDeviceID)
-                                .frame(height: 180)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            pipSection(config: config)
-                        }
+                inspectorSection("Camera") {
+                    Toggle("Include webcam", isOn: $config.includeWebcam)
+                    if config.includeWebcam {
+                        cameraPicker(config: config)
+                        pipSection(config: config)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(4)
                 }
 
-                GroupBox("Audio") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Toggle("Microphone", isOn: $config.includeMic)
-                        if config.includeMic {
-                            micPicker(config: config)
-                            gainSlider(
-                                title: "Mic gain",
-                                value: $config.micGainDb,
-                                range: -24...12
-                            )
-                        }
-                        Toggle("System audio", isOn: $config.includeSystemAudio)
-                        if config.includeSystemAudio {
-                            gainSlider(
-                                title: "System gain",
-                                value: $config.systemAudioGainDb,
-                                range: -24...12
-                            )
-                            Text("Default −6 dB relative to mic (system runs hotter).")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+                inspectorSection("Audio") {
+                    Toggle("Microphone", isOn: $config.includeMic)
+                    if config.includeMic {
+                        micPicker(config: config)
+                        gainSlider(
+                            title: "Mic gain",
+                            value: $config.micGainDb,
+                            range: -24...12
+                        )
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(4)
-                }
-
-                GroupBox("Quality") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Resolution")
-                            .font(.subheadline)
-                        Picker("Resolution", selection: $config.resolutionCap) {
-                            Text("1440p").tag(ResolutionCap.p1440)
-                            Text("Native").tag(ResolutionCap.native)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-
-                        Text("Default 30 fps. Native uses the display’s pixel size.")
+                    Toggle("System audio", isOn: $config.includeSystemAudio)
+                    if config.includeSystemAudio {
+                        gainSlider(
+                            title: "System gain",
+                            value: $config.systemAudioGainDb,
+                            range: -24...12
+                        )
+                        Text("Default −6 dB relative to mic.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(4)
+                }
+
+                inspectorSection("Quality") {
+                    Text("Resolution")
+                        .font(.subheadline)
+                    Picker("Resolution", selection: $config.resolutionCap) {
+                        Text("1440p").tag(ResolutionCap.p1440)
+                        Text("Native").tag(ResolutionCap.native)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+
+                    Text("Default 30 fps. Native uses the display’s pixel size.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(.background)
+        .background(LoomTheme.inspectorBackground)
+    }
+
+    private func inspectorSection<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.headline)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Permission / load error

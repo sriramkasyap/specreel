@@ -2,15 +2,14 @@ import SwiftUI
 import AppKit
 import AVKit
 
-/// Library grid: newest first, live updates via `RecordingStore`, inline playback,
-/// title/description write-through to meta.json (never folder rename).
+/// Library grid: newest first, live updates via `RecordingStore`.
 struct GalleryView: View {
     @Environment(RecordingStore.self) private var store
 
-    @State private var searchText = ""
-    @State private var sort: SortKey = .dateNewest
-    @State private var selection: RecordingEntry.ID?
-    @State private var confirmDelete: RecordingEntry?
+    @Binding var selection: RecordingEntry.ID?
+    var filter: LibraryDestination
+    @Binding var searchText: String
+    var sort: SortKey
 
     enum SortKey: String, CaseIterable, Identifiable {
         case dateNewest, dateOldest, durationLongest, durationShortest
@@ -27,9 +26,22 @@ struct GalleryView: View {
         }
     }
 
-    private var filtered: [RecordingEntry] {
+    @State private var confirmDelete: RecordingEntry?
+
+    var filtered: [RecordingEntry] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         var items = store.recordings
+        switch filter {
+        case .newRecording:
+            break
+        case .all:
+            break
+        case .recents:
+            let cutoff = Date().addingTimeInterval(-14 * 24 * 60 * 60)
+            items = items.filter { $0.meta.createdAt >= cutoff }
+        case .camera:
+            items = items.filter(\.meta.hasWebcam)
+        }
         if !q.isEmpty {
             items = items.filter {
                 $0.meta.title.lowercased().contains(q)
@@ -46,25 +58,33 @@ struct GalleryView: View {
     }
 
     var body: some View {
-        HSplitView {
-            libraryColumn
-                .frame(minWidth: 320)
-
-            detailColumn
-                .frame(minWidth: 360)
-        }
-        .navigationTitle("Recordings")
-        .searchable(text: $searchText, prompt: "Search title or description")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Picker("Sort", selection: $sort) {
-                    ForEach(SortKey.allCases) { key in
-                        Text(key.title).tag(key)
-                    }
+        Group {
+            if filtered.isEmpty {
+                ContentUnavailableView {
+                    Label(emptyTitle, systemImage: "film.stack")
+                } description: {
+                    Text(emptyDescription)
                 }
-                .pickerStyle(.menu)
+            } else {
+                ScrollView {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 220), spacing: 16)],
+                        spacing: 18
+                    ) {
+                        ForEach(filtered) { entry in
+                            GalleryThumbnailCell(
+                                entry: entry,
+                                isSelected: selection == entry.id
+                            )
+                            .onTapGesture { selection = entry.id }
+                            .contextMenu { contextMenu(for: entry) }
+                        }
+                    }
+                    .padding(20)
+                }
             }
         }
+        .background(Color(nsColor: .textBackgroundColor))
         .confirmationDialog(
             "Move this recording to Trash?",
             isPresented: Binding(
@@ -89,56 +109,26 @@ struct GalleryView: View {
         }
     }
 
-    // MARK: - Library
-
-    private var libraryColumn: some View {
-        Group {
-            if filtered.isEmpty {
-                ContentUnavailableView {
-                    Label("No Recordings", systemImage: "film.stack")
-                } description: {
-                    Text(
-                        searchText.isEmpty
-                            ? "Record from the menu bar to get started."
-                            : "No recordings match your search."
-                    )
-                }
-            } else {
-                ScrollView {
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 160), spacing: 12)],
-                        spacing: 12
-                    ) {
-                        ForEach(filtered) { entry in
-                            GalleryThumbnailCell(
-                                entry: entry,
-                                isSelected: selection == entry.id
-                            )
-                            .onTapGesture { selection = entry.id }
-                            .contextMenu { contextMenu(for: entry) }
-                        }
-                    }
-                    .padding()
-                }
-            }
+    private var emptyTitle: String {
+        if !searchText.isEmpty { return "No Matches" }
+        switch filter {
+        case .camera: return "No Camera Recordings"
+        case .recents: return "Nothing Recent"
+        default: return "No Recordings"
         }
     }
 
-    // MARK: - Detail / playback
-
-    @ViewBuilder
-    private var detailColumn: some View {
-        if let entry = store.recordings.first(where: { $0.id == selection })
-            ?? filtered.first
-        {
-            GalleryDetailView(entry: entry)
-                .id(entry.id)
-        } else {
-            ContentUnavailableView(
-                "Select a Recording",
-                systemImage: "play.rectangle",
-                description: Text("Choose a clip from the gallery to play and edit.")
-            )
+    private var emptyDescription: String {
+        if !searchText.isEmpty {
+            return "No recordings match your search."
+        }
+        switch filter {
+        case .camera:
+            return "Recordings that include the webcam will show up here."
+        case .recents:
+            return "Clips from the last 14 days will appear here."
+        default:
+            return "Start a recording from the menu bar or New Recording."
         }
     }
 
@@ -164,36 +154,47 @@ private struct GalleryThumbnailCell: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .bottomTrailing) {
                 thumbnail
                     .frame(maxWidth: .infinity)
                     .aspectRatio(16 / 9, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(isSelected ? Color.accentColor : .clear, lineWidth: 2)
-                    )
+                    .clipShape(RoundedRectangle(cornerRadius: LoomTheme.cardRadius, style: .continuous))
 
-                Text(formatDuration(entry.meta.duration))
+                if entry.meta.hasWebcam {
+                    Circle()
+                        .fill(Color.black.opacity(0.35))
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.9))
+                        )
+                        .padding(10)
+                }
+
+                Text(LoomTheme.duration(entry.meta.duration))
                     .font(.caption2.monospacedDigit().weight(.semibold))
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 4))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
                     .foregroundStyle(.white)
-                    .padding(6)
+                    .padding(8)
             }
+            .overlay(
+                RoundedRectangle(cornerRadius: LoomTheme.cardRadius, style: .continuous)
+                    .strokeBorder(isSelected ? Color.accentColor : .black.opacity(0.06), lineWidth: isSelected ? 2 : 1)
+            )
 
             Text(entry.meta.title.isEmpty ? "Untitled" : entry.meta.title)
-                .font(.subheadline.weight(.medium))
+                .font(.subheadline.weight(.semibold))
                 .lineLimit(2)
 
             Text(entry.meta.createdAt.formatted(date: .abbreviated, time: .shortened))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(6)
-        .background(isSelected ? Color.accentColor.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .padding(4)
     }
 
     @ViewBuilder
@@ -204,93 +205,10 @@ private struct GalleryThumbnailCell: View {
                 .aspectRatio(contentMode: .fill)
         } else {
             ZStack {
-                Color.secondary.opacity(0.12)
+                LoomTheme.canvas
                 Image(systemName: "film")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.45))
             }
         }
-    }
-
-    private func formatDuration(_ t: TimeInterval) -> String {
-        let total = Int(t.rounded())
-        let m = total / 60
-        let s = total % 60
-        return String(format: "%d:%02d", m, s)
-    }
-}
-
-// MARK: - Detail + inline player + editable meta
-
-private struct GalleryDetailView: View {
-    @Environment(RecordingStore.self) private var store
-    let entry: RecordingEntry
-
-    @State private var title: String = ""
-    @State private var descriptionText: String = ""
-    @State private var player: AVPlayer?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let player {
-                VideoPlayer(player: player)
-                    .frame(minHeight: 240)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.secondary.opacity(0.12))
-                    .frame(minHeight: 240)
-                    .overlay {
-                        ProgressView()
-                    }
-            }
-
-            TextField("Title", text: $title)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit { persistMeta() }
-
-            TextEditor(text: $descriptionText)
-                .font(.body)
-                .frame(minHeight: 64, maxHeight: 120)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(.quaternary)
-                )
-
-            HStack {
-                Button("Save Details") { persistMeta() }
-                    .keyboardShortcut("s", modifiers: .command)
-
-                Spacer()
-
-                Button("Reveal in Finder") { try? store.revealInFinder(id: entry.id) }
-                Button("Copy Path") { try? store.copyPath(id: entry.id) }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding()
-        .onAppear {
-            title = entry.meta.title
-            descriptionText = entry.meta.description
-            player = AVPlayer(url: entry.videoURL)
-        }
-        .onChange(of: entry.id) { _, _ in
-            player?.pause()
-            title = entry.meta.title
-            descriptionText = entry.meta.description
-            player = AVPlayer(url: entry.videoURL)
-        }
-        .onDisappear {
-            player?.pause()
-            persistMeta()
-        }
-    }
-
-    private func persistMeta() {
-        try? store.updateMeta(
-            id: entry.id,
-            title: title,
-            description: descriptionText
-        )
     }
 }

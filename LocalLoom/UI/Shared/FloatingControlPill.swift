@@ -9,33 +9,41 @@ struct FloatingControlPill: View {
     var onPauseResume: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Circle()
-                .fill(engine.phase == .paused ? Color.orange : Color.red)
+                .fill(engine.phase == .paused ? Color.orange : LoomTheme.record)
                 .frame(width: 8, height: 8)
                 .opacity(engine.phase == .recording ? 1 : 0.85)
 
             Text(MenuBarStatusLabel.elapsedString(engine.elapsed))
-                .font(.system(.body, design: .rounded).monospacedDigit().weight(.semibold))
-                .frame(minWidth: 48, alignment: .leading)
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .monospacedDigit()
+                .frame(minWidth: 44, alignment: .leading)
 
             Button(action: onPauseResume) {
                 Image(systemName: engine.phase == .paused ? "play.fill" : "pause.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 22, height: 22)
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .help(engine.phase == .paused ? "Resume" : "Pause")
 
-            Button(role: .destructive, action: onStop) {
+            Button(action: onStop) {
                 Image(systemName: "stop.fill")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 22, height: 22)
+                    .background(LoomTheme.record, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .help("Stop")
         }
+        .foregroundStyle(.white)
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(.white.opacity(0.18)))
-        .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+        .padding(.vertical, 8)
+        .background(LoomTheme.pillFill, in: Capsule())
+        .overlay(Capsule().strokeBorder(.white.opacity(0.12)))
+        .shadow(color: .black.opacity(0.4), radius: 16, y: 6)
     }
 }
 

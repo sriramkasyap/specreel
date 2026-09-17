@@ -48,51 +48,51 @@ struct MenuBarPopover: View {
     @Environment(RecordingConfig.self) private var config
     @Environment(RecordingEngine.self) private var engine
     @Environment(RecordingStore.self) private var store
+    @Environment(RecordingSessionController.self) private var session
     @Environment(\.openWindow) private var openWindow
 
-    @State private var showOptions = false
-    @State private var isBusy = false
-    @State private var errorMessage: String?
-    @State private var countdownController: CountdownOverlayController?
-    @State private var controlPillController: FloatingControlPillController?
-    @State private var postPanelController: PostRecordingPanelController?
     @State private var didHandleClickToStop = false
 
     var body: some View {
-        @Bindable var config = config
-
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             header
 
             if engine.phase == .idle {
-                idleControls
+                RecordingConfigView(mode: .compact)
+                RecordActionButton(isBusy: session.isBusy) {
+                    Task { await session.start(engine: engine, config: config, store: store) }
+                }
+                .keyboardShortcut(.defaultAction)
             } else {
                 activeControls
             }
 
-            Divider()
-
-            Button("Recordings…") {
-                openWindow(id: "main")
-                NSApp.activate(ignoringOtherApps: true)
-            }
-            .buttonStyle(.borderless)
-
-            if let errorMessage {
+            if let errorMessage = session.errorMessage {
                 Text(errorMessage)
                     .font(.caption)
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
+
+            Divider()
+
+            Button {
+                openWindow(id: "main")
+                NSApp.activate(ignoringOtherApps: true)
+            } label: {
+                Label("Recordings", systemImage: "film.stack")
+            }
+            .buttonStyle(.borderless)
         }
-        .padding(14)
-        .frame(width: 320)
+        .padding(16)
+        .frame(width: 300)
         .onAppear {
             // M7: click status item while recording/paused → stop immediately.
             guard !didHandleClickToStop else { return }
             if engine.phase == .recording || engine.phase == .paused {
                 didHandleClickToStop = true
-                Task { await stopRecordingFlow() }
+                Task { await session.stop(engine: engine, store: store) }
             }
         }
         .onChange(of: engine.phase) { _, phase in
@@ -102,7 +102,7 @@ struct MenuBarPopover: View {
 
     private var header: some View {
         HStack {
-            Text("Local Loom")
+            Text(engine.phase == .idle ? "New Recording" : "Local Loom")
                 .font(.headline)
             Spacer()
             phaseBadge
@@ -118,8 +118,8 @@ struct MenuBarPopover: View {
                 .foregroundStyle(.secondary)
         case .recording:
             Text(MenuBarStatusLabel.elapsedString(engine.elapsed))
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.red)
+                .font(.caption.monospacedDigit().weight(.semibold))
+                .foregroundStyle(LoomTheme.record)
         case .paused:
             Text("Paused \(MenuBarStatusLabel.elapsedString(engine.elapsed))")
                 .font(.caption.monospacedDigit())
@@ -127,114 +127,29 @@ struct MenuBarPopover: View {
         }
     }
 
-    private var idleControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                Task { await startRecordingFlow() }
-            } label: {
-                Label("Record", systemImage: "record.circle.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
-            .disabled(isBusy)
-            .keyboardShortcut(.defaultAction)
-
-            DisclosureGroup("Options", isExpanded: $showOptions) {
-                RecordingConfigView(mode: .compact)
-                    .padding(.top, 4)
-            }
-        }
-    }
-
     private var activeControls: some View {
         VStack(spacing: 8) {
-            Button(role: .destructive) {
-                Task { await stopRecordingFlow() }
-            } label: {
-                Label("Stop Recording", systemImage: "stop.circle.fill")
-                    .frame(maxWidth: .infinity)
+            RecordActionButton(title: "Stop recording", isBusy: session.isBusy) {
+                Task { await session.stop(engine: engine, store: store) }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
-            .disabled(isBusy)
 
-            HStack {
-                if engine.phase == .recording {
-                    Button {
-                        Task { await engine.pause() }
-                    } label: {
-                        Label("Pause", systemImage: "pause.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                } else if engine.phase == .paused {
-                    Button {
-                        Task { await engine.resume() }
-                    } label: {
-                        Label("Resume", systemImage: "play.fill")
-                            .frame(maxWidth: .infinity)
-                    }
+            if engine.phase == .recording {
+                Button {
+                    Task { await engine.pause() }
+                } label: {
+                    Label("Pause", systemImage: "pause.fill")
+                        .frame(maxWidth: .infinity)
                 }
-            }
-            .disabled(isBusy)
-        }
-    }
-
-    // MARK: - Flows
-
-    @MainActor
-    private func startRecordingFlow() async {
-        errorMessage = nil
-        isBusy = true
-        defer { isBusy = false }
-
-        config.save()
-
-        let countdown = CountdownOverlayController()
-        countdownController = countdown
-        let proceeded = await countdown.run(seconds: 3)
-        countdownController = nil
-        guard proceeded else { return }
-
-        do {
-            try await engine.start(config: config.snapshot())
-            let pill = FloatingControlPillController(
-                onStop: { Task { await stopRecordingFlow() } },
-                onPauseResume: {
-                    Task {
-                        if engine.phase == .paused {
-                            await engine.resume()
-                        } else {
-                            await engine.pause()
-                        }
-                    }
+                .disabled(session.isBusy)
+            } else if engine.phase == .paused {
+                Button {
+                    Task { await engine.resume() }
+                } label: {
+                    Label("Resume", systemImage: "play.fill")
+                        .frame(maxWidth: .infinity)
                 }
-            )
-            pill.show(engine: engine)
-            controlPillController = pill
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    private func stopRecordingFlow() async {
-        errorMessage = nil
-        isBusy = true
-        defer { isBusy = false }
-
-        controlPillController?.close()
-        controlPillController = nil
-
-        do {
-            let result = try await engine.stop()
-            let panel = PostRecordingPanelController(store: store)
-            postPanelController = panel
-            panel.present(result: result) {
-                postPanelController = nil
+                .disabled(session.isBusy)
             }
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 }

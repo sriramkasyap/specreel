@@ -37,27 +37,56 @@ struct PostRecordingPanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Save Recording")
-                .font(.title2.weight(.semibold))
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Save recording")
+                .font(.title3.weight(.semibold))
 
-            HStack(alignment: .top, spacing: 16) {
+            ZStack(alignment: .bottomTrailing) {
                 thumbnailView
-                    .frame(width: 200, height: 112)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(.quaternary)
-                    )
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: LoomTheme.previewRadius, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 6) {
-                    metaRow("Duration", formatDuration(result.duration))
-                    metaRow("Size", "\(result.width)×\(result.height)")
-                    metaRow("FPS", "\(result.fps)")
-                    metaRow("Source", result.sourceDescription)
+                if result.hasWebcam {
+                    Circle()
+                        .fill(Color.black.opacity(0.4))
+                        .frame(width: 56, height: 56)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .foregroundStyle(.white.opacity(0.9))
+                        )
+                        .padding(12)
                 }
-                .font(.caption)
+
+                Text(LoomTheme.duration(result.duration))
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
+                    .foregroundStyle(.white)
+                    .padding(10)
             }
+
+            HStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Duration").foregroundStyle(.secondary)
+                    Text(LoomTheme.duration(result.duration)).textSelection(.enabled)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Size").foregroundStyle(.secondary)
+                    Text("\(result.width)×\(result.height)").textSelection(.enabled)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("FPS").foregroundStyle(.secondary)
+                    Text("\(result.fps)").textSelection(.enabled)
+                }
+            }
+            .font(.caption)
+
+            Text(result.sourceDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
 
             TextField("Title", text: $title)
                 .textFieldStyle(.roundedBorder)
@@ -65,7 +94,7 @@ struct PostRecordingPanel: View {
 
             TextEditor(text: $descriptionText)
                 .font(.body)
-                .frame(minHeight: 72, maxHeight: 120)
+                .frame(minHeight: 64, maxHeight: 96)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
                         .strokeBorder(.quaternary)
@@ -81,7 +110,7 @@ struct PostRecordingPanel: View {
                 }
 
             HStack {
-                Button("Discard", role: .cancel) {
+                Button("Discard") {
                     onDiscard()
                 }
                 .keyboardShortcut(.cancelAction)
@@ -96,8 +125,8 @@ struct PostRecordingPanel: View {
                 .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(20)
-        .frame(width: 480)
+        .padding(18)
+        .frame(width: 420)
         .onAppear { titleFocused = true }
         .onExitCommand { onDiscard() }
     }
@@ -118,26 +147,6 @@ struct PostRecordingPanel: View {
         }
     }
 
-    private func metaRow(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(label)
-                .foregroundStyle(.secondary)
-                .frame(width: 64, alignment: .leading)
-            Text(value)
-                .textSelection(.enabled)
-        }
-    }
-
-    private func formatDuration(_ t: TimeInterval) -> String {
-        let total = Int(t.rounded())
-        let m = total / 60
-        let s = total % 60
-        if m >= 60 {
-            let h = m / 60
-            return String(format: "%d:%02d:%02d", h, m % 60, s)
-        }
-        return String(format: "%d:%02d", m, s)
-    }
 }
 
 // MARK: - Own floating NSWindow (never a sheet on MainWindow)
@@ -174,7 +183,7 @@ final class PostRecordingPanelController: NSObject {
 
         let hosting = NSHostingController(rootView: root)
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 380),
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 520),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false

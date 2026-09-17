@@ -8,6 +8,7 @@ struct LocalLoomApp: App {
 
     @State private var config = RecordingConfig.load()
     @State private var store = RecordingStore()
+    @State private var session = RecordingSessionController()
     private let engine = RecordingEngine()
 
     var body: some Scene {
@@ -16,9 +17,10 @@ struct LocalLoomApp: App {
                 .environment(config)
                 .environment(store)
                 .environment(engine)
-                .frame(minWidth: 880, minHeight: 560)
+                .environment(session)
+                .frame(minWidth: 980, minHeight: 620)
         }
-        .defaultSize(width: 1040, height: 680)
+        .defaultSize(width: 1180, height: 740)
         .commands {
             CommandGroup(replacing: .newItem) {}
         }
@@ -28,6 +30,7 @@ struct LocalLoomApp: App {
                 .environment(config)
                 .environment(store)
                 .environment(engine)
+                .environment(session)
         } label: {
             MenuBarStatusLabel()
                 .environment(engine)

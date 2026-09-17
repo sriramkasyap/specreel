@@ -1,5 +1,15 @@
 # Local Loom — Decision Log
 
+## 2026-09-17 13:12 — Refactor UI to layout reference
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| Low | Sidebar uses smart filters (All / Recents / Camera) instead of user folders | `LibrarySidebar.swift` | Artifact gallery sidebar looks folder-like, but `RecordingStore` has no folder model and the yellow notes were unreadable at 26% zoom | unlinked |
+| Low | New Recording canvas previews via `SCScreenshotManager` snapshot, not a live SCStream | `CapturePreviewCanvas.swift` | Avoids a second capture stream fighting the recorder; still shows source + circular webcam PiP | unlinked |
+| Medium | Three-column `HSplitView` (sidebar \| gallery/canvas \| inspector) instead of config\|gallery | `MainWindow.swift` | Matches the artifact's library chrome; keeps hard column mins so controls don't clip | partially linked |
+| Medium | Region overlay confirms from a bottom toolbar, not mouse-up | `RegionSelector.swift` | Artifact shows handles + Cancel/Confirm; auto-confirm on release made the toolbar unreachable | partially linked |
+| High | One `RecordingSessionController` for popover and main-window Record | `RecordingSessionController.swift` | Countdown, pill, and post-save panel must stay identical whichever surface starts the take | linked |
+
 ## 2026-09-17 12:52 — Fix AVAssetWriter finishWriting crash on Stop
 
 | Confidence | Decision | Where | Reasoning | Spec link |

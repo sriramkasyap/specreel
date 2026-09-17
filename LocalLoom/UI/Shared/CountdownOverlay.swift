@@ -12,22 +12,23 @@ struct CountdownOverlay: View {
             Color.black.opacity(0.45)
                 .ignoresSafeArea()
 
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 Text("\(remaining)")
-                    .font(.system(size: 120, weight: .bold, design: .rounded))
+                    .font(.system(size: 112, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(.white)
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.2), value: remaining)
 
                 Text("Recording starts…")
-                    .font(.title3)
+                    .font(.title3.weight(.medium))
                     .foregroundStyle(.white.opacity(0.85))
 
                 Button("Cancel", role: .cancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
                     .buttonStyle(.bordered)
                     .tint(.white)
+                    .padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
