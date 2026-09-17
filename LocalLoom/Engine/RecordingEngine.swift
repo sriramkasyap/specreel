@@ -30,6 +30,7 @@ enum RecordingEngineError: Error, LocalizedError {
     case alreadyRecording
     case notRecording
     case contentUnavailable
+    case screenRecordingDenied
     case displayNotFound(UInt32)
     case windowNotFound(UInt32)
     case writerSetupFailed(String)
@@ -43,11 +44,14 @@ enum RecordingEngineError: Error, LocalizedError {
         case .alreadyRecording: return "A recording is already in progress"
         case .notRecording: return "No recording is in progress"
         case .contentUnavailable: return "Unable to enumerate shareable content"
+        case .screenRecordingDenied:
+            return "Screen Recording permission is required. Enable LocalLoom in System Settings, then quit and reopen the app."
         case .displayNotFound(let id): return "Display \(id) was not found"
         case .windowNotFound(let id): return "Window \(id) was not found"
         case .writerSetupFailed(let msg): return "AVAssetWriter setup failed: \(msg)"
         case .writerFailed(let msg): return "AVAssetWriter failed: \(msg)"
-        case .noFramesCaptured: return "No frames were captured"
+        case .noFramesCaptured:
+            return "No frames were captured. ScreenCaptureKit only sends frames when the screen changes — move the cursor during the recording, then stop."
         case .streamStartFailed(let err): return "SCStream failed to start: \(err.localizedDescription)"
         case .cameraUnavailable: return "Selected camera is unavailable"
         }
@@ -98,6 +102,11 @@ final class RecordingEngine: @unchecked Sendable {
 
     // MARK: Owned pipeline pieces
 
+    /// Serial queue for SCStream callbacks + writer mutation. Never spawn per-frame
+    /// `Task`s from the stream output — that unbounded concurrency froze the app
+    /// within seconds of hitting Record.
+    fileprivate let pipelineQueue = DispatchQueue(label: "com.localloom.pipeline", qos: .userInitiated)
+
     private var stream: SCStream?
     private var streamOutput: StreamOutputProxy?
     private var captureSession: AVCaptureSession?
@@ -131,10 +140,28 @@ final class RecordingEngine: @unchecked Sendable {
     private var pendingSystemAudio: CMSampleBuffer?
     private var pendingMicAudio: CMSampleBuffer?
 
+    /// Latest screen frame waiting to be drained (coalesce under load).
+    private var pendingScreenSample: CMSampleBuffer?
+    private var screenDrainScheduled = false
+
+    /// Prevents double `finishWriting` (user Stop + stream-death) and blocks
+    /// appends once teardown begins.
+    private var isStopping = false
+    private var writerFinalized = false
+
     // MARK: - Public API
 
     func start(config: RecordingConfig) async throws {
         guard state == .idle else { throw RecordingEngineError.alreadyRecording }
+
+        // Record is an explicit user action — request once if needed, then fail clearly
+        // instead of letting SCShareableContent surface a confusing TCC sheet mid-setup.
+        if !ScreenCaptureAccess.isGranted {
+            let granted = await MainActor.run { ScreenCaptureAccess.request() }
+            guard granted else {
+                throw RecordingEngineError.screenRecordingDenied
+            }
+        }
 
         let snapshot = config.snapshot()
         activeConfig = snapshot
@@ -151,7 +178,11 @@ final class RecordingEngine: @unchecked Sendable {
         lastAppendedPTS = .zero
         pendingSystemAudio = nil
         pendingMicAudio = nil
-        elapsedSeconds = 0
+        pendingScreenSample = nil
+        screenDrainScheduled = false
+        isStopping = false
+        writerFinalized = false
+        await publishElapsed(0)
 
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         let filter = try Self.makeContentFilter(config: snapshot, content: content)
@@ -177,12 +208,13 @@ final class RecordingEngine: @unchecked Sendable {
 
         let scStream = SCStream(filter: filter, configuration: streamConfig, delegate: proxy)
         do {
-            try scStream.addStreamOutput(proxy, type: .screen, sampleHandlerQueue: .global(qos: .userInitiated))
+            // All outputs share `pipelineQueue` so sample handling stays serial.
+            try scStream.addStreamOutput(proxy, type: .screen, sampleHandlerQueue: pipelineQueue)
             if snapshot.includeSystemAudio {
-                try scStream.addStreamOutput(proxy, type: .audio, sampleHandlerQueue: .global(qos: .userInitiated))
+                try scStream.addStreamOutput(proxy, type: .audio, sampleHandlerQueue: pipelineQueue)
             }
             if snapshot.includeMic {
-                try scStream.addStreamOutput(proxy, type: .microphone, sampleHandlerQueue: .global(qos: .userInitiated))
+                try scStream.addStreamOutput(proxy, type: .microphone, sampleHandlerQueue: pipelineQueue)
             }
         } catch {
             throw RecordingEngineError.streamStartFailed(error)
@@ -201,59 +233,103 @@ final class RecordingEngine: @unchecked Sendable {
             throw RecordingEngineError.streamStartFailed(error)
         }
 
-        state = .recording
         recordingWallStart = Date()
+        await publishPhase(.recording)
         startElapsedTicker()
     }
 
     func pause() async {
-        guard state == .recording else { return }
-        state = .paused
-        // Anchor against last raw PTS; refined when the next sample arrives while paused.
-        if pauseStartedAt == nil {
-            pauseStartedAt = lastAppendedPTS
+        guard phase == .recording else { return }
+        await publishPhase(.paused)
+        pipelineQueue.async { [weak self] in
+            guard let self else { return }
+            if self.pauseStartedAt == nil {
+                self.pauseStartedAt = self.lastAppendedPTS
+            }
         }
     }
 
     func resume() async {
-        guard state == .paused else { return }
-        // Leave `pauseStartedAt` set — the next screen sample closes the interval
-        // against its raw PTS so we don't double-count here and in handleScreenSample.
-        state = .recording
+        guard phase == .paused else { return }
+        // Leave `pauseStartedAt` set — next screen sample closes the interval.
+        await publishPhase(.recording)
     }
 
     @discardableResult
     func stop() async throws -> RecordingResult {
-        guard state == .recording || state == .paused else {
+        guard phase == .recording || phase == .paused else {
             throw RecordingEngineError.notRecording
         }
 
         elapsedTickerTask?.cancel()
         elapsedTickerTask = nil
 
-        // Finish any open pause interval.
-        if state == .paused, let started = pauseStartedAt {
-            let delta = CMTimeSubtract(lastAppendedPTS, started)
-            if CMTIME_IS_NUMERIC(delta), delta.value > 0 {
-                pausedDuration = CMTimeAdd(pausedDuration, delta)
+        // 1) Reject further samples immediately (before touching the writer).
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            pipelineQueue.async {
+                self.isStopping = true
+                if let started = self.pauseStartedAt {
+                    let delta = CMTimeSubtract(self.lastAppendedPTS, started)
+                    if CMTIME_IS_NUMERIC(delta), delta.value > 0 {
+                        self.pausedDuration = CMTimeAdd(self.pausedDuration, delta)
+                    }
+                    self.pauseStartedAt = nil
+                }
+                self.pendingScreenSample = nil
+                self.screenDrainScheduled = false
+                cont.resume()
             }
-            pauseStartedAt = nil
         }
+        await publishPhase(.idle)
 
+        // 2) Stop capture producers.
         await teardownCaptureOnly()
 
+        // 3) Barrier: ensure any in-flight pipeline callback has finished appending.
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            pipelineQueue.async { cont.resume() }
+        }
+
+        // 4) Finalize writer safely (cancel if no session was ever started).
         let result = try await finalizeWriter()
-        state = .idle
         activeConfig = nil
         return result
     }
 
-    // MARK: - Sample handling (called from proxies via Task)
+    // MARK: - UI state (must publish on main — @Observable + SwiftUI)
 
-    func handleScreenSample(_ sampleBuffer: CMSampleBuffer) async {
-        guard state == .recording || state == .paused else { return }
+    private func publishPhase(_ newPhase: RecordingEngineState) async {
+        await MainActor.run { self.state = newPhase }
+    }
 
-        // Trap 2 + Trap 5: require .complete AND a non-nil image buffer.
+    private func publishElapsed(_ value: TimeInterval) async {
+        await MainActor.run { self.elapsedSeconds = value }
+    }
+
+    // MARK: - Sample handling (pipelineQueue only)
+
+    /// Coalesce screen frames: keep only the latest while draining.
+    fileprivate func enqueueScreenSample(_ sampleBuffer: CMSampleBuffer) {
+        guard !isStopping else { return }
+        pendingScreenSample = sampleBuffer
+        guard !screenDrainScheduled else { return }
+        screenDrainScheduled = true
+        drainPendingScreenSamples()
+    }
+
+    private func drainPendingScreenSamples() {
+        while let sampleBuffer = pendingScreenSample {
+            pendingScreenSample = nil
+            processScreenSample(sampleBuffer)
+        }
+        screenDrainScheduled = false
+    }
+
+    private func processScreenSample(_ sampleBuffer: CMSampleBuffer) {
+        guard !isStopping else { return }
+        let current = phase
+        guard current == .recording || current == .paused else { return }
+
         guard Self.isCompleteFrame(sampleBuffer),
               let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return
@@ -262,8 +338,7 @@ final class RecordingEngine: @unchecked Sendable {
         let rawPTS = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         guard CMTIME_IS_VALID(rawPTS), CMTIME_IS_NUMERIC(rawPTS) else { return }
 
-        // Track pause boundaries against the raw (pre-subtraction) timeline.
-        if state == .paused {
+        if current == .paused {
             if pauseStartedAt == nil {
                 pauseStartedAt = rawPTS
             }
@@ -271,7 +346,6 @@ final class RecordingEngine: @unchecked Sendable {
             return
         }
 
-        // Closing a pause: accumulate using rawPTS now that we're recording again.
         if let started = pauseStartedAt {
             let delta = CMTimeSubtract(rawPTS, started)
             if CMTIME_IS_NUMERIC(delta), delta.value > 0 {
@@ -295,30 +369,35 @@ final class RecordingEngine: @unchecked Sendable {
             return
         }
 
-        let webcam = activeConfig?.includeWebcam == true ? webcamLatch.current() : nil
-        let composited: CVPixelBuffer
-        do {
-            composited = try compositor.composite(screen: imageBuffer, webcam: webcam)
-        } catch {
-            // Fall back to raw screen frame rather than dropping.
-            composited = imageBuffer
+        // Skip Metal/CI compositor when webcam is off — CIContext every frame
+        // was a major backlog/freeze source for the default recording path.
+        let frameToWrite: CVPixelBuffer
+        if activeConfig?.includeWebcam == true, let webcam = webcamLatch.current() {
+            do {
+                frameToWrite = try compositor.composite(screen: imageBuffer, webcam: webcam)
+            } catch {
+                frameToWrite = imageBuffer
+            }
+        } else {
+            frameToWrite = imageBuffer
         }
 
-        if adaptor.append(composited, withPresentationTime: adjustedPTS) {
+        if adaptor.append(frameToWrite, withPresentationTime: adjustedPTS) {
             lastAppendedPTS = rawPTS
         }
     }
 
-    func handleSystemAudioSample(_ sampleBuffer: CMSampleBuffer) async {
-        await handleAudioSample(sampleBuffer, isMic: false)
+    fileprivate func processSystemAudioSample(_ sampleBuffer: CMSampleBuffer) {
+        processAudioSample(sampleBuffer, isMic: false)
     }
 
-    func handleMicrophoneSample(_ sampleBuffer: CMSampleBuffer) async {
-        await handleAudioSample(sampleBuffer, isMic: true)
+    fileprivate func processMicrophoneSample(_ sampleBuffer: CMSampleBuffer) {
+        processAudioSample(sampleBuffer, isMic: true)
     }
 
-    private func handleAudioSample(_ sampleBuffer: CMSampleBuffer, isMic: Bool) async {
-        guard state == .recording else { return }
+    private func processAudioSample(_ sampleBuffer: CMSampleBuffer, isMic: Bool) {
+        guard !isStopping else { return }
+        guard phase == .recording else { return }
         guard sessionStarted else {
             if isMic { pendingMicAudio = sampleBuffer } else { pendingSystemAudio = sampleBuffer }
             return
@@ -334,9 +413,6 @@ final class RecordingEngine: @unchecked Sendable {
         do {
             let systemSample: CMSampleBuffer? = isMic ? nil : sampleBuffer
             let micSample: CMSampleBuffer? = isMic ? sampleBuffer : nil
-            // When only one source arrives per callback, mix with nil other —
-            // real dual-source mixing lands when both fire closely; for M3 the
-            // mixer still converts + applies the correct per-source gain.
             guard let mixed = try audioMixer.mix(systemSample: systemSample, micSample: micSample) else {
                 return
             }
@@ -348,18 +424,17 @@ final class RecordingEngine: @unchecked Sendable {
         }
     }
 
-    /// Trap 6: stream died (sleep / disconnect / resolution change) — finalize, don't lose the file.
-    func handleStreamStopped(error: Error?) async {
-        guard state == .recording || state == .paused else { return }
-        elapsedTickerTask?.cancel()
-        elapsedTickerTask = nil
-        await teardownCaptureOnly()
-        do {
-            _ = try await finalizeWriter()
-        } catch {
-            // Best-effort finalize; UI can observe state → idle with a partial file at outputURL.
+    /// Trap 6: stream died — reuse stop() so finalize rules stay in one place.
+    fileprivate func handleStreamStopped(error: Error?) {
+        Task { [weak self] in
+            guard let self else { return }
+            guard self.phase == .recording || self.phase == .paused else { return }
+            do {
+                _ = try await self.stop()
+            } catch {
+                await self.publishPhase(.idle)
+            }
         }
-        state = .idle
     }
 
     // MARK: - Writer
@@ -432,53 +507,132 @@ final class RecordingEngine: @unchecked Sendable {
         audioInput = aInput
     }
 
+    /// Status 1 (`.writing`) without `startSession` makes `finishWriting` throw
+    /// NSInternalInconsistencyException — cancel instead when no frames arrived.
     private func finalizeWriter() async throws -> RecordingResult {
-        guard let writer = assetWriter, let url = outputURL, let config = activeConfig else {
-            throw RecordingEngineError.notRecording
+        struct FinishRequest {
+            let writer: AVAssetWriter
+            let url: URL
+            let config: RecordingConfig
+            let first: CMTime
+            let lastRaw: CMTime
+            let paused: CMTime
+            let width: Int
+            let height: Int
         }
 
-        videoInput?.markAsFinished()
-        audioInput?.markAsFinished()
+        enum Prep {
+            case missing
+            case alreadyFinalized
+            case noSession(url: URL)
+            case ready(FinishRequest)
+        }
 
-        let first = firstScreenPTS
-        let lastRaw = lastAppendedPTS
-        let paused = pausedDuration
+        let prep: Prep = await withCheckedContinuation { cont in
+            pipelineQueue.async {
+                guard let writer = self.assetWriter,
+                      let url = self.outputURL,
+                      let config = self.activeConfig else {
+                    cont.resume(returning: .missing)
+                    return
+                }
+                if self.writerFinalized {
+                    cont.resume(returning: .alreadyFinalized)
+                    return
+                }
 
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            writer.finishWriting {
-                cont.resume()
+                let first = self.firstScreenPTS
+                let lastRaw = self.lastAppendedPTS
+                let paused = self.pausedDuration
+                let width = self.outputWidth
+                let height = self.outputHeight
+                let didStartSession = self.sessionStarted && first != nil
+
+                // No startSession → cancelWriting. Calling finishWriting here crashes
+                // with: "Cannot call method when status is 1".
+                if !didStartSession || writer.status != .writing {
+                    self.writerFinalized = true
+                    if writer.status == .writing {
+                        writer.cancelWriting()
+                    }
+                    self.clearWriterState()
+                    cont.resume(returning: .noSession(url: url))
+                    return
+                }
+
+                self.writerFinalized = true
+                self.videoInput?.markAsFinished()
+                self.audioInput?.markAsFinished()
+
+                let request = FinishRequest(
+                    writer: writer,
+                    url: url,
+                    config: config,
+                    first: first!,
+                    lastRaw: lastRaw,
+                    paused: paused,
+                    width: width,
+                    height: height
+                )
+                // Detach inputs/adaptor; keep writer alive for finishWriting.
+                self.videoInput = nil
+                self.audioInput = nil
+                self.pixelBufferAdaptor = nil
+                self.assetWriter = nil
+                self.outputURL = nil
+                cont.resume(returning: .ready(request))
             }
         }
 
-        if writer.status == .failed {
-            let msg = writer.error?.localizedDescription ?? "unknown writer failure"
-            clearWriterState()
-            throw RecordingEngineError.writerFailed(msg)
-        }
-
-        guard let first, CMTIME_IS_NUMERIC(first) else {
-            clearWriterState()
+        switch prep {
+        case .missing, .alreadyFinalized:
+            throw RecordingEngineError.notRecording
+        case .noSession(let url):
+            try? FileManager.default.removeItem(at: url)
             throw RecordingEngineError.noFramesCaptured
+        case .ready(let request):
+            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                request.writer.finishWriting {
+                    cont.resume()
+                }
+            }
+
+            if request.writer.status == .failed {
+                let msg = request.writer.error?.localizedDescription ?? "unknown writer failure"
+                try? FileManager.default.removeItem(at: request.url)
+                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                    self.pipelineQueue.async {
+                        self.clearWriterState()
+                        cont.resume()
+                    }
+                }
+                throw RecordingEngineError.writerFailed(msg)
+            }
+
+            let endAdjusted = CMTimeSubtract(request.lastRaw, request.paused)
+            let durationTime = CMTimeSubtract(endAdjusted, request.first)
+            let duration = max(0, CMTimeGetSeconds(durationTime))
+
+            let result = RecordingResult(
+                fileURL: request.url,
+                duration: duration,
+                width: request.width,
+                height: request.height,
+                fps: request.config.fps,
+                sourceDescription: request.config.source.description,
+                hasWebcam: request.config.includeWebcam,
+                hasMic: request.config.includeMic,
+                hasSystemAudio: request.config.includeSystemAudio
+            )
+
+            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                self.pipelineQueue.async {
+                    self.clearWriterState()
+                    cont.resume()
+                }
+            }
+            return result
         }
-
-        let endAdjusted = CMTimeSubtract(lastRaw, paused)
-        let durationTime = CMTimeSubtract(endAdjusted, first)
-        let duration = max(0, CMTimeGetSeconds(durationTime))
-
-        let result = RecordingResult(
-            fileURL: url,
-            duration: duration,
-            width: outputWidth,
-            height: outputHeight,
-            fps: config.fps,
-            sourceDescription: config.source.description,
-            hasWebcam: config.includeWebcam,
-            hasMic: config.includeMic,
-            hasSystemAudio: config.includeSystemAudio
-        )
-
-        clearWriterState()
-        return result
     }
 
     private func clearWriterState() {
@@ -492,6 +646,8 @@ final class RecordingEngine: @unchecked Sendable {
         pausedDuration = .zero
         pauseStartedAt = nil
         lastAppendedPTS = .zero
+        isStopping = false
+        // writerFinalized stays true until the next start() resets it
     }
 
     // MARK: - Capture teardown (keep writer alive for finalize)
@@ -566,13 +722,13 @@ final class RecordingEngine: @unchecked Sendable {
         }
     }
 
-    private func tickElapsed() {
-        guard state == .recording || state == .paused else { return }
+    private func tickElapsed() async {
+        let current = phase
+        guard current == .recording else { return }
         guard let start = recordingWallStart else { return }
-        // Wall-clock based UI timer; media duration comes from PTS at stop.
-        if state == .recording {
-            elapsedSeconds = Date().timeIntervalSince(start) - CMTimeGetSeconds(pausedDuration)
-        }
+        let paused = CMTimeGetSeconds(pausedDuration)
+        let value = Date().timeIntervalSince(start) - paused
+        await publishElapsed(max(0, value))
     }
 
     // MARK: - Static helpers
@@ -811,20 +967,21 @@ private final class StreamOutputProxy: NSObject, SCStreamOutput, SCStreamDelegat
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
+        // Invoked on `engine.pipelineQueue` — process synchronously, no per-frame Task.
         switch type {
         case .screen:
-            Task { await engine.handleScreenSample(sampleBuffer) }
+            engine.enqueueScreenSample(sampleBuffer)
         case .audio:
-            Task { await engine.handleSystemAudioSample(sampleBuffer) }
+            engine.processSystemAudioSample(sampleBuffer)
         case .microphone:
-            Task { await engine.handleMicrophoneSample(sampleBuffer) }
+            engine.processMicrophoneSample(sampleBuffer)
         @unknown default:
             break
         }
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
-        Task { await engine.handleStreamStopped(error: error) }
+        engine.handleStreamStopped(error: error)
     }
 }
 
