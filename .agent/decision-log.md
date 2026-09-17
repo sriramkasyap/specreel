@@ -1,5 +1,45 @@
 # Local Loom — Decision Log
 
+## 2026-09-17 12:52 — Fix AVAssetWriter finishWriting crash on Stop
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| High | Call `cancelWriting` instead of `finishWriting` when no `startSession` (status `.writing` / 1) | `finalizeWriter` | Apple throws NSInternalInconsistencyException if you finish without a session — common on static screens (Trap 2) | linked |
+| High | Set `isStopping` + pipeline barrier before finalize | `stop()` | Prevents late sample appends racing `finishWriting` | unlinked |
+| Medium | Route stream-death through `stop()` | `handleStreamStopped` | Avoids double-finalize races with user Stop | partially linked |
+
+## 2026-09-17 12:45 — Fix OPERATOR build/open paths
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| High | Document Debug + `SYMROOT=./build` as the default CLI path; Release only when `-configuration Release` | `docs/OPERATOR.md`, `scripts/dev.sh` | Plain `xcodebuild build` never created `build/Release/` — it used DerivedData/Debug | linked |
+
+## 2026-09-17 12:40 — Fix app freeze on Record
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| High | Process SCStream samples on a serial `pipelineQueue` with no per-frame `Task` | `RecordingEngine.swift` | Unbounded Tasks per frame raced the writer and starved the UI within ~2–4s | unlinked |
+| High | Publish `phase` / `elapsed` only via `MainActor` | `RecordingEngine.swift` | `@Observable` updates off the main thread hang SwiftUI (pill + menu bar) | unlinked |
+| High | Skip CIContext compositor when webcam is off | `processScreenSample` | Default path was Metal-rendering every frame for no reason | unlinked |
+| Medium | Coalesce pending screen frames while draining | `enqueueScreenSample` | Keeps realtime capture from queuing a multi-second backlog under load | unlinked |
+
+## 2026-09-17 12:30 — Stop Screen Recording re-prompt on Recordings open
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| High | Preflight with `CGPreflightScreenCaptureAccess` and skip `SCShareableContent` on window appear when denied | `ScreenCaptureAccess.swift`, `RecordingConfigView.swift` | Opening Recordings called SCK every time, which re-triggered the system TCC sheet | linked |
+| High | Only call `CGRequestScreenCaptureAccess` from Grant / Record / region-select | Capture + Engine | System prompt must be user-initiated, never a side effect of browsing the gallery | linked |
+| Medium | Surface stale-grant quit/relaunch hint in the banner | `RecordingConfigView.swift` | Common when Settings shows LocalLoom on but this DerivedData build isn't the granted binary | partially linked |
+
+## 2026-09-17 12:28 — Fix broken Recordings window layout
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| Medium | Replace `NavigationSplitView` with `HSplitView` + `NavigationStack` for main window | `MainWindow.swift` | Sidebar column was clipping GroupBox/segmented controls into unreadable fragments; HSplitView keeps a hard min width (320) | partially linked |
+| Medium | Map raw TCC denial strings to an actionable Screen Recording banner + Settings deep-link | `RecordingConfigView.swift` | Screenshot showed truncated "The user declined TCCs for…" with no recovery path | partially linked |
+| High | Stack gain/size sliders as label-above-control instead of `LabeledContent` | `RecordingConfigView.swift` | Horizontal `LabeledContent` was the main clip culprit in narrow columns | unlinked |
+| High | Shorten resolution segment labels to "1440p" / "Native" | `RecordingConfigView.swift` | "1440p cap" + long caption overflowed the Quality GroupBox | unlinked |
+
 ## Phase 1 — TRD (Claude Code PM/Tech Lead)
 
 | Decision | Rationale | Source |
