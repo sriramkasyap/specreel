@@ -4,21 +4,53 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+build_debug() {
+  xcodegen generate -s project.yml
+  xcodebuild \
+    -project LocalLoom.xcodeproj \
+    -scheme LocalLoom \
+    -destination 'platform=macOS' \
+    -configuration Debug \
+    SYMROOT="${ROOT}/build" \
+    build
+}
+
 case "${1:-}" in
   build)
-    xcodegen generate
-    xcodebuild -scheme LocalLoom -destination 'platform=macOS' -configuration Debug build
+    build_debug
+    echo "App: ${ROOT}/build/Debug/LocalLoom.app"
+    ;;
+  run)
+    build_debug
+    open "${ROOT}/build/Debug/LocalLoom.app"
+    ;;
+  release)
+    xcodegen generate -s project.yml
+    xcodebuild \
+      -project LocalLoom.xcodeproj \
+      -scheme LocalLoom \
+      -destination 'platform=macOS' \
+      -configuration Release \
+      SYMROOT="${ROOT}/build" \
+      build
+    echo "App: ${ROOT}/build/Release/LocalLoom.app"
+    open "${ROOT}/build/Release/LocalLoom.app"
     ;;
   test)
-    xcodegen generate
-    xcodebuild -scheme LocalLoom -destination 'platform=macOS' test
+    xcodegen generate -s project.yml
+    xcodebuild -project LocalLoom.xcodeproj -scheme LocalLoom -destination 'platform=macOS' test
     ;;
   open)
-    xcodegen generate
+    xcodegen generate -s project.yml
     open LocalLoom.xcodeproj
     ;;
   *)
-    echo "Usage: $0 {build|test|open}"
+    echo "Usage: $0 {build|run|release|test|open}"
+    echo "  build    Debug → ./build/Debug/LocalLoom.app"
+    echo "  run      build + open Debug app"
+    echo "  release  Release → ./build/Release/LocalLoom.app + open"
+    echo "  test     run unit/integration tests"
+    echo "  open     generate project and open in Xcode"
     exit 1
     ;;
 esac

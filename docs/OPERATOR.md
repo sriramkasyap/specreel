@@ -22,14 +22,49 @@ Both your MacBook and Mac Mini are well past macOS 15 — no OS upgrade needed.
 
 ### Option 1: Build & Run from Source (current setup)
 
+Plain `xcodebuild build` defaults to **Debug** and writes into Xcode’s DerivedData — it does **not** create `build/Release/`. Use one of these:
+
+**A. Easiest — open in Xcode and Run**
+
 ```bash
 cd /Users/sriramkasyapmeduri/Works/SK/mac-screen-recorder
 xcodegen generate -s project.yml
-xcodebuild build -project LocalLoom.xcodeproj -scheme LocalLoom
+open LocalLoom.xcodeproj
+```
+
+Then select the `LocalLoom` scheme and Product → Run (⌘R).
+
+**B. CLI with a local `build/` folder**
+
+```bash
+cd /Users/sriramkasyapmeduri/Works/SK/mac-screen-recorder
+xcodegen generate -s project.yml
+xcodebuild build \
+  -project LocalLoom.xcodeproj \
+  -scheme LocalLoom \
+  -configuration Debug \
+  -destination 'platform=macOS' \
+  SYMROOT="$(pwd)/build"
+open build/Debug/LocalLoom.app
+```
+
+For a Release build (creates `build/Release/`):
+
+```bash
+xcodebuild build \
+  -project LocalLoom.xcodeproj \
+  -scheme LocalLoom \
+  -configuration Release \
+  -destination 'platform=macOS' \
+  SYMROOT="$(pwd)/build"
 open build/Release/LocalLoom.app
 ```
 
-Or from Xcode: open `LocalLoom.xcodeproj`, select the `LocalLoom` scheme, Product → Run.
+**C. Helper script**
+
+```bash
+./scripts/dev.sh run    # generate + Debug build into ./build + open the app
+```
 
 ### Option 2: Run the pre-built app
 
@@ -43,7 +78,7 @@ First launch will prompt for permissions (see below).
 
 ### Moving to another Mac
 
-Copy the app bundle to the other Mac via AirDrop, USB, or `scp`. The app uses **ad-hoc code signing** — see the Signing section below for whether you need a Developer ID for distribution.
+Copy the app bundle to the other Mac via AirDrop, USB, or `scp`. Prefer a **Release** build from Option 1B. See the Signing section below for Developer ID vs development signing.
 
 ---
 
@@ -188,10 +223,16 @@ rclone copy r2:my-bucket/localloom-backups/2026-09-15-143022-a3f9c1/ ~/Movies/Lo
 ```bash
 cd /Users/sriramkasyapmeduri/Works/SK/mac-screen-recorder
 xcodegen generate -s project.yml   # Only needed if project.yml changed
-xcodebuild build -project LocalLoom.xcodeproj -scheme LocalLoom
+xcodebuild build \
+  -project LocalLoom.xcodeproj \
+  -scheme LocalLoom \
+  -configuration Debug \
+  -destination 'platform=macOS' \
+  SYMROOT="$(pwd)/build"
+open build/Debug/LocalLoom.app
 ```
 
-Or just Cmd+B in Xcode.
+Or `./scripts/dev.sh run`, or Cmd+R in Xcode.
 
 ### If you add new Swift files
 
