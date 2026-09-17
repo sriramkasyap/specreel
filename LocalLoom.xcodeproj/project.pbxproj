@@ -17,6 +17,7 @@
 		1E1227D7722A64252E1FACCD /* HotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9D55C40715FCBB010B8C39 /* HotKeyManager.swift */; };
 		2C62451B77899EF342405B46 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3FFBE5F4C3FEA1155ADF7F8 /* MenuBarController.swift */; };
 		3D79A33B9CB32F2D0F33994A /* PostRecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEC04938A41B50AE35F5E23E /* PostRecordingPanel.swift */; };
+		41CBA58FCE240BFF1E2B929B /* ScreenCaptureAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 428EFA84E8EB971C70518711 /* ScreenCaptureAccess.swift */; };
 		44AD3629F1095DEBFC471515 /* RecordingConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BDC41C8EAC411AA9A413DE4 /* RecordingConfigView.swift */; };
 		52966E3CD888E6308801551E /* RegionSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F90F3EE912A87BE0F94DE54 /* RegionSelector.swift */; };
 		554BD81723CE0793F405B211 /* RecordingMeta.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6E85F002B5A0C5858CE8F31 /* RecordingMeta.swift */; };
@@ -63,6 +64,7 @@
 		2149D505CA4B9FFFD2A20937 /* LocalLoomIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LocalLoomIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		36981FE07863ED0AD3AAECDF /* RecordingConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingConfig.swift; sourceTree = "<group>"; };
 		3A22E3D986C1E35BC5512EAC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		428EFA84E8EB971C70518711 /* ScreenCaptureAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureAccess.swift; sourceTree = "<group>"; };
 		4ABFC411334E9AFAFFAF5F9A /* PipelineTeardownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineTeardownTests.swift; sourceTree = "<group>"; };
 		51CC1ABF9C43A8D467BA8BAA /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
 		5F90F3EE912A87BE0F94DE54 /* RegionSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionSelector.swift; sourceTree = "<group>"; };
@@ -178,6 +180,7 @@
 				952C5D02E00EDF324E71D805 /* CaptureSourcePicker.swift */,
 				BA9D55C40715FCBB010B8C39 /* HotKeyManager.swift */,
 				5F90F3EE912A87BE0F94DE54 /* RegionSelector.swift */,
+				428EFA84E8EB971C70518711 /* ScreenCaptureAccess.swift */,
 			);
 			path = Capture;
 			sourceTree = "<group>";
@@ -403,6 +406,7 @@
 				554BD81723CE0793F405B211 /* RecordingMeta.swift in Sources */,
 				8F419BFF678EAAC42566BDC3 /* RecordingStore.swift in Sources */,
 				52966E3CD888E6308801551E /* RegionSelector.swift in Sources */,
+				41CBA58FCE240BFF1E2B929B /* ScreenCaptureAccess.swift in Sources */,
 				142EC8B6AB099D35E27603BB /* WebcamLatch.swift in Sources */,
 				C34ED6BA90CAFE290F45642D /* WebcamPreviewView.swift in Sources */,
 			);

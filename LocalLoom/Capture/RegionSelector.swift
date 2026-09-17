@@ -30,11 +30,14 @@ public final class RegionSelector {
     public enum SelectionError: Error, LocalizedError, Sendable {
         case cancelled
         case noDisplayMatched
+        case screenRecordingDenied
 
         public var errorDescription: String? {
             switch self {
             case .cancelled: return "Region selection cancelled"
             case .noDisplayMatched: return "Could not match selection to a display"
+            case .screenRecordingDenied:
+                return "Screen Recording permission is required to select a region."
             }
         }
     }
@@ -48,6 +51,15 @@ public final class RegionSelector {
     public func selectRegion() async throws -> Result {
         if continuation != nil {
             tearDown()
+        }
+
+        // Region pick is user-initiated — request once if needed, never silently
+        // spam the system sheet from a background refresh.
+        if !ScreenCaptureAccess.isGranted {
+            let granted = ScreenCaptureAccess.request()
+            guard granted else {
+                throw SelectionError.screenRecordingDenied
+            }
         }
 
         let displays: [SCDisplay]

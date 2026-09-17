@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import AppKit
 import ScreenCaptureKit
 
 /// One config UI for popover (compact) and main window (expanded).
@@ -27,6 +28,7 @@ struct RecordingConfigView: View {
     @State private var microphones: [AVCaptureDevice] = []
     @State private var isLoadingSources = false
     @State private var loadError: String?
+    @State private var isPermissionError = false
     @State private var regionSelector = RegionSelector()
 
     var body: some View {
@@ -50,6 +52,7 @@ struct RecordingConfigView: View {
         @Bindable var config = config
         Form {
             sourceSection(config: config)
+            permissionErrorBanner
             Toggle("Camera", isOn: $config.includeWebcam)
             if config.includeWebcam {
                 cameraPicker(config: config)
@@ -70,20 +73,23 @@ struct RecordingConfigView: View {
     private func expandedBody(config: RecordingConfig) -> some View {
         @Bindable var config = config
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 16) {
                 Text("Recording Setup")
                     .font(.title2.weight(.semibold))
+
+                permissionErrorBanner
 
                 GroupBox("Source") {
                     VStack(alignment: .leading, spacing: 10) {
                         sourceSection(config: config)
-                        if let loadError {
-                            Text(loadError)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
-                        Button("Refresh Sources") {
+
+                        Button {
                             Task { await refreshDevicesAndSources() }
+                        } label: {
+                            Label(
+                                isLoadingSources ? "Refreshing…" : "Refresh Sources",
+                                systemImage: "arrow.clockwise"
+                            )
                         }
                         .disabled(isLoadingSources)
                     }
@@ -127,6 +133,7 @@ struct RecordingConfigView: View {
                             Text("Default −6 dB relative to mic (system runs hotter).")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,17 +141,67 @@ struct RecordingConfigView: View {
                 }
 
                 GroupBox("Quality") {
-                    Picker("Resolution", selection: $config.resolutionCap) {
-                        Text("1440p cap").tag(ResolutionCap.p1440)
-                        Text("Native").tag(ResolutionCap.native)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Resolution")
+                            .font(.subheadline)
+                        Picker("Resolution", selection: $config.resolutionCap) {
+                            Text("1440p").tag(ResolutionCap.p1440)
+                            Text("Native").tag(ResolutionCap.native)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+
+                        Text("Default 30 fps. Native uses the display’s pixel size.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .pickerStyle(.segmented)
-                    Text("Default 30 fps. Native = display pixel dimensions.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(4)
                 }
             }
-            .padding()
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(.background)
+    }
+
+    // MARK: - Permission / load error
+
+    @ViewBuilder
+    private var permissionErrorBanner: some View {
+        if let loadError {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(loadError, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+
+                if isPermissionError {
+                    Text(ScreenCaptureAccess.staleGrantHint)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 8) {
+                        Button("Grant Access…") {
+                            requestScreenRecordingAccess()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+
+                        Button("Open Settings") {
+                            ScreenCaptureAccess.openSystemSettings()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -154,36 +211,41 @@ struct RecordingConfigView: View {
     private func sourceSection(config: RecordingConfig) -> some View {
         @Bindable var config = config
 
-        Picker("Capture", selection: Binding(
-            get: { config.source.kind },
-            set: { newKind in
-                switch newKind {
-                case .display:
-                    config.source = .display(
-                        id: config.source.displayID ?? CGMainDisplayID(),
-                        name: config.source.displayName
-                    )
-                case .window:
-                    config.source = .window(
-                        id: config.source.windowID ?? 0,
-                        appName: config.source.appName,
-                        title: config.source.windowTitle,
-                        displayID: config.source.displayID
-                    )
-                case .region:
-                    config.source = .region(
-                        displayID: config.source.displayID ?? CGMainDisplayID(),
-                        rectInNSScreenPoints: config.source.regionInNSScreenPoints ?? .zero,
-                        displayName: config.source.displayName
-                    )
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Capture")
+                .font(.subheadline)
+            Picker("Capture", selection: Binding(
+                get: { config.source.kind },
+                set: { newKind in
+                    switch newKind {
+                    case .display:
+                        config.source = .display(
+                            id: config.source.displayID ?? CGMainDisplayID(),
+                            name: config.source.displayName
+                        )
+                    case .window:
+                        config.source = .window(
+                            id: config.source.windowID ?? 0,
+                            appName: config.source.appName,
+                            title: config.source.windowTitle,
+                            displayID: config.source.displayID
+                        )
+                    case .region:
+                        config.source = .region(
+                            displayID: config.source.displayID ?? CGMainDisplayID(),
+                            rectInNSScreenPoints: config.source.regionInNSScreenPoints ?? .zero,
+                            displayName: config.source.displayName
+                        )
+                    }
                 }
+            )) {
+                Text("Display").tag(CaptureSourceKind.display)
+                Text("Window").tag(CaptureSourceKind.window)
+                Text("Region").tag(CaptureSourceKind.region)
             }
-        )) {
-            Text("Display").tag(CaptureSourceKind.display)
-            Text("Window").tag(CaptureSourceKind.window)
-            Text("Region").tag(CaptureSourceKind.region)
+            .pickerStyle(.segmented)
+            .labelsHidden()
         }
-        .pickerStyle(.segmented)
 
         switch config.source.kind {
         case .display:
@@ -272,41 +334,48 @@ struct RecordingConfigView: View {
         return VStack(alignment: .leading, spacing: 10) {
             pipCornerPicker(config: config)
 
-            LabeledContent("Size") {
-                HStack {
-                    Slider(value: $config.pip.sizePercent, in: 10...40, step: 1)
-                    Text("\(Int(config.pip.sizePercent))%")
-                        .font(.caption.monospacedDigit())
-                        .frame(width: 36, alignment: .trailing)
-                }
-            }
+            gainSlider(
+                title: "Size",
+                value: Binding(
+                    get: { Float(config.pip.sizePercent) },
+                    set: { config.pip.sizePercent = Double($0) }
+                ),
+                range: 10...40,
+                format: { "\(Int($0))%" }
+            )
 
-            LabeledContent("Corner radius") {
-                HStack {
-                    Slider(value: $config.pip.cornerRadius, in: 0...48, step: 1)
-                    Text("\(Int(config.pip.cornerRadius))")
-                        .font(.caption.monospacedDigit())
-                        .frame(width: 28, alignment: .trailing)
-                }
-            }
+            gainSlider(
+                title: "Corner radius",
+                value: Binding(
+                    get: { Float(config.pip.cornerRadius) },
+                    set: { config.pip.cornerRadius = Double($0) }
+                ),
+                range: 0...48,
+                format: { "\(Int($0))" }
+            )
 
             Toggle("Circular mask", isOn: $config.pip.circularMask)
             Toggle("Border", isOn: $config.pip.showBorder)
         }
     }
 
+    /// Vertical label + slider so narrow columns don't clip `LabeledContent`.
     private func gainSlider(
         title: String,
         value: Binding<Float>,
-        range: ClosedRange<Float>
+        range: ClosedRange<Float>,
+        format: ((Float) -> String)? = nil
     ) -> some View {
-        LabeledContent(title) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Slider(value: value, in: range)
-                Text(String(format: "%+.0f dB", value.wrappedValue))
+                Text(title)
+                    .font(.subheadline)
+                Spacer()
+                Text(format?(value.wrappedValue) ?? String(format: "%+.0f dB", value.wrappedValue))
                     .font(.caption.monospacedDigit())
-                    .frame(width: 52, alignment: .trailing)
+                    .foregroundStyle(.secondary)
             }
+            Slider(value: value, in: range)
         }
     }
 
@@ -323,12 +392,7 @@ struct RecordingConfigView: View {
                 sourceRectInDisplayPoints: result.sourceRect,
                 displayBoundsInNSScreenPoints: bounds
             )
-            let name: String = {
-                if #available(macOS 14.0, *) {
-                    return "Display \(result.display.displayID)"
-                }
-                return "Display \(result.display.displayID)"
-            }()
+            let name = "Display \(result.display.displayID)"
             config.source = .region(
                 displayID: result.display.displayID,
                 rectInNSScreenPoints: nsRect,
@@ -337,7 +401,7 @@ struct RecordingConfigView: View {
         } catch is RegionSelector.SelectionError {
             // Cancelled — leave existing region.
         } catch {
-            loadError = error.localizedDescription
+            applyLoadError(error)
         }
     }
 
@@ -345,16 +409,10 @@ struct RecordingConfigView: View {
     private func refreshDevicesAndSources() async {
         isLoadingSources = true
         loadError = nil
+        isPermissionError = false
         defer { isLoadingSources = false }
 
-        do {
-            let sources = try await CaptureSourcePicker.loadSources()
-            displays = sources.displays
-            windows = sources.windows
-        } catch {
-            loadError = error.localizedDescription
-        }
-
+        // Cameras / mics never need Screen Recording — always refresh them.
         cameras = AVCaptureDevice.DiscoverySession(
             deviceTypes: [.builtInWideAngleCamera, .external],
             mediaType: .video,
@@ -366,6 +424,59 @@ struct RecordingConfigView: View {
             mediaType: .audio,
             position: .unspecified
         ).devices
+
+        // Critical: do NOT call SCShareableContent when unauthorized.
+        // That API surfaces the system TCC sheet; running it on every
+        // Recordings-window open was the re-prompt loop.
+        guard ScreenCaptureAccess.isGranted else {
+            displays = []
+            windows = []
+            isPermissionError = true
+            loadError = "Screen Recording permission is required to list displays and windows."
+            return
+        }
+
+        do {
+            let sources = try await CaptureSourcePicker.loadSources()
+            displays = sources.displays
+            windows = sources.windows
+        } catch {
+            applyLoadError(error)
+        }
+    }
+
+    @MainActor
+    private func requestScreenRecordingAccess() {
+        // User-initiated only — may show the system sheet once.
+        let granted = ScreenCaptureAccess.request()
+        if granted {
+            Task { await refreshDevicesAndSources() }
+        } else {
+            isPermissionError = true
+            loadError = "Screen Recording permission was not granted. Enable LocalLoom in System Settings, then quit and reopen the app."
+            ScreenCaptureAccess.openSystemSettings()
+        }
+    }
+
+    private func applyLoadError(_ error: Error) {
+        let raw = error.localizedDescription
+        if Self.isScreenRecordingPermissionError(raw) {
+            isPermissionError = true
+            loadError = "Screen Recording permission is required. Enable LocalLoom in System Settings → Privacy & Security → Screen Recording, then quit and reopen the app."
+        } else {
+            isPermissionError = false
+            loadError = raw
+        }
+    }
+
+    private static func isScreenRecordingPermissionError(_ message: String) -> Bool {
+        let lower = message.lowercased()
+        return lower.contains("tcc")
+            || lower.contains("declined")
+            || lower.contains("screen capture")
+            || lower.contains("screen recording")
+            || lower.contains("not authorized")
+            || lower.contains("permission")
     }
 }
 
