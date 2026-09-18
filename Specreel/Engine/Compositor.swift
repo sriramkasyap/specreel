@@ -89,8 +89,12 @@ final class Compositor: @unchecked Sendable {
         let frameW = CGFloat(frameWidth)
         let frameH = CGFloat(frameHeight)
 
-        let pipSize = frameW * CGFloat(settings.sizePercent / 100)
-        let inset = frameW * CGFloat(settings.edgeInsetFraction)
+        // Sized off frame height, not width: on an ultra-wide capture (e.g. a
+        // 3440×1440 display) 20% of width is ~48% of height, so the webcam
+        // bubble ballooned far past the intended size. Height keeps it a
+        // consistent fraction of the visible picture regardless of aspect ratio.
+        let pipSize = frameH * CGFloat(settings.sizePercent / 100)
+        let inset = frameH * CGFloat(settings.edgeInsetFraction)
 
         // Center-crop webcam to square *before* circular mask.
         let cropped = centerCropToSquare(CIImage(cvPixelBuffer: webcam))
