@@ -1,6 +1,6 @@
-name: LocalLoom
+name: Specreel
 options:
-  bundleIdPrefix: com.localloom
+  bundleIdPrefix: dev.yagna
   deploymentTarget:
     macOS: "15.0"
   xcodeVersion: "16.0"
@@ -22,22 +22,23 @@ packages:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: "2.0.0"
 targets:
-  LocalLoom:
+  Specreel:
     type: application
     platform: macOS
     sources:
-      - path: LocalLoom
+      - path: Specreel
         excludes:
           - "**/.DS_Store"
     resources:
-      - path: LocalLoom/Resources
+      - path: Specreel/Resources
         optional: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.localloom.app
-        PRODUCT_NAME: LocalLoom
-        INFOPLIST_FILE: LocalLoom/Info.plist
-        CODE_SIGN_ENTITLEMENTS: LocalLoom/LocalLoom.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: dev.yagna.specreel
+        PRODUCT_NAME: Specreel
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_FILE: Specreel/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Specreel/Specreel.entitlements
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "F0E68E2139D99E40A51186407C21E70CC3E43060"
         DEVELOPMENT_TEAM: X93VLP8U9X
@@ -52,46 +53,46 @@ targets:
       - package: KeyboardShortcuts
     scheme:
       testTargets:
-        - LocalLoomTests
-        - LocalLoomIntegrationTests
-  LocalLoomTests:
+        - SpecreelTests
+        - SpecreelIntegrationTests
+  SpecreelTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - LocalLoomTests
+      - SpecreelTests
     dependencies:
-      - target: LocalLoom
+      - target: Specreel
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.localloom.tests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.yagna.specreel.tests
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "F0E68E2139D99E40A51186407C21E70CC3E43060"
         DEVELOPMENT_TEAM: X93VLP8U9X
-  LocalLoomIntegrationTests:
+  SpecreelIntegrationTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - LocalLoomIntegrationTests
+      - SpecreelIntegrationTests
     dependencies:
-      - target: LocalLoom
+      - target: Specreel
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.localloom.integrationtests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.yagna.specreel.integrationtests
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "F0E68E2139D99E40A51186407C21E70CC3E43060"
         DEVELOPMENT_TEAM: X93VLP8U9X
 schemes:
-  LocalLoom:
+  Specreel:
     build:
       targets:
-        LocalLoom: all
-        LocalLoomTests: [test]
-        LocalLoomIntegrationTests: [test]
+        Specreel: all
+        SpecreelTests: [test]
+        SpecreelIntegrationTests: [test]
     test:
       targets:
-        - LocalLoomTests
-        - LocalLoomIntegrationTests
+        - SpecreelTests
+        - SpecreelIntegrationTests
     run:
       config: Debug

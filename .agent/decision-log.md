@@ -1,4 +1,16 @@
-# Local Loom — Decision Log
+# Specreel — Decision Log
+
+## 2026-09-18 11:40 — Renamed LocalLoom to Specreel and applied the brand
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| Low | Skipped a menu-bar template icon asset; the record-glyph status item still uses SF Symbols (`record.circle` etc.) rather than a custom Specreel mark | `Specreel/UI/MenuBar/MenuBarController.swift` | The brand board's menu-bar notes describe a future custom template asset, but the user didn't ask to replace the working SF Symbol glyphs, which already satisfy the same "OS-tinted, pure alpha" requirement the notes are getting at. Add a custom template PDF/PNG only if the brand mark specifically needs to show up in the menu bar itself | unlinked |
+| Medium | App icon breakpoints: used the brand board's four given anchors (128/64/32/16 px → stroke 11/12/13/14, mask radius 24.5/26.5/28/29) verbatim, and reused the 128px numbers for the 256/512/1024px tiers instead of guessing new ones | `Specreel/Resources/Assets.xcassets/AppIcon.appiconset` | The board only documents legibility concerns as the tile shrinks below 128px; nothing suggested large tiles need different proportions, so reusing the largest documented tier there avoids inventing unspecified numbers | unlinked |
+| Medium | Glyph fills 140/240 ≈ 58% of the icon tile width, matching the ratio in the board's largest tile example, applied uniformly across all 5 icon sizes | `Specreel/Resources/Assets.xcassets/AppIcon.appiconset` | Board didn't give an explicit padding percentage, so derived it from the one concrete example rather than picking an arbitrary number | unlinked |
+| High | Added `CFBundleDisplayName` and rewrote `NSCameraUsageDescription`/`NSMicrophoneUsageDescription` to the exact strings the user specified | `Specreel/Info.plist` | User-specified, not a guess — logged for completeness since it touches a file with several other unprompted changes | linked |
+| High | Added an explicit `.accessibilityLabel("Specreel")` to the menu-bar status item (previously only had a dynamic `.help()` tooltip, no stable accessibility name) | `Specreel/UI/MenuBar/MenuBarController.swift` | User asked for "menu bar accessibility label: Specreel"; the existing `.help()` text changes with recording state, so a separate stable `.accessibilityLabel` was added alongside it rather than replacing the tooltip | unlinked |
+| High | Left historical decision-log entries below this one untouched (old file paths like `LocalLoom/UI/...` still say `LocalLoom`), only retitled this file's header | `.agent/decision-log.md` | Those paths were accurate at the time the entries were written; rewriting them would misrepresent what the repo looked like when the decision was made | unlinked |
+| High | Test target bundle IDs follow the app's pattern: `dev.yagna.specreel.tests` / `dev.yagna.specreel.integrationtests` | `project.yml` | Mirrors the prior `com.localloom.app` / `.tests` / `.integrationtests` convention exactly, just swapping the confirmed prefix | linked |
 
 ## 2026-09-18 11:25 — Fixed save-recording panel text overflow
 

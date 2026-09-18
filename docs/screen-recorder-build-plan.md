@@ -1,4 +1,4 @@
-# Local Loom — Build Plan
+# Specreel — Build Plan
 
 A personal macOS screen recorder. Records display / window / region, optional burned-in webcam PiP, mic + system audio mixed to one track, writes a self-contained folder to disk with a metadata sidecar. No server, no upload, no accounts.
 
@@ -92,7 +92,7 @@ The status item icon carries recording state: idle glyph, red glyph plus elapsed
 One folder per recording, fully self-contained:
 
 ```
-~/Movies/LocalLoom/
+~/Movies/Specreel/
   2026-09-15-143022-a3f9c1/
     recording.mp4
     thumbnail.jpg

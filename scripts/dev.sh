@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Manual + automatable acceptance helpers for Local Loom milestones.
+# Manual + automatable acceptance helpers for Specreel milestones.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -7,8 +7,8 @@ cd "$ROOT"
 build_debug() {
   xcodegen generate -s project.yml
   xcodebuild \
-    -project LocalLoom.xcodeproj \
-    -scheme LocalLoom \
+    -project Specreel.xcodeproj \
+    -scheme Specreel \
     -destination 'platform=macOS' \
     -configuration Debug \
     SYMROOT="${ROOT}/build" \
@@ -18,37 +18,37 @@ build_debug() {
 case "${1:-}" in
   build)
     build_debug
-    echo "App: ${ROOT}/build/Debug/LocalLoom.app"
+    echo "App: ${ROOT}/build/Debug/Specreel.app"
     ;;
   run)
     build_debug
-    open "${ROOT}/build/Debug/LocalLoom.app"
+    open "${ROOT}/build/Debug/Specreel.app"
     ;;
   release)
     xcodegen generate -s project.yml
     xcodebuild \
-      -project LocalLoom.xcodeproj \
-      -scheme LocalLoom \
+      -project Specreel.xcodeproj \
+      -scheme Specreel \
       -destination 'platform=macOS' \
       -configuration Release \
       SYMROOT="${ROOT}/build" \
       build
-    echo "App: ${ROOT}/build/Release/LocalLoom.app"
-    open "${ROOT}/build/Release/LocalLoom.app"
+    echo "App: ${ROOT}/build/Release/Specreel.app"
+    open "${ROOT}/build/Release/Specreel.app"
     ;;
   test)
     xcodegen generate -s project.yml
-    xcodebuild -project LocalLoom.xcodeproj -scheme LocalLoom -destination 'platform=macOS' test
+    xcodebuild -project Specreel.xcodeproj -scheme Specreel -destination 'platform=macOS' test
     ;;
   open)
     xcodegen generate -s project.yml
-    open LocalLoom.xcodeproj
+    open Specreel.xcodeproj
     ;;
   *)
     echo "Usage: $0 {build|run|release|test|open}"
-    echo "  build    Debug → ./build/Debug/LocalLoom.app"
+    echo "  build    Debug → ./build/Debug/Specreel.app"
     echo "  run      build + open Debug app"
-    echo "  release  Release → ./build/Release/LocalLoom.app + open"
+    echo "  release  Release → ./build/Release/Specreel.app + open"
     echo "  test     run unit/integration tests"
     echo "  open     generate project and open in Xcode"
     exit 1

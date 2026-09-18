@@ -1,8 +1,8 @@
-# Local Loom — Operator Guide
+# Specreel — Operator Guide
 
 ## Overview
 
-Local Loom is a native macOS screen recorder (Loom replacement). Records display/window/region with optional burned-in webcam PiP, mic + system audio mixed to one track, and writes a self-contained folder to disk with a metadata sidecar. No server, no upload, no accounts.
+Specreel is a native macOS screen recorder (Loom replacement). Records display/window/region with optional burned-in webcam PiP, mic + system audio mixed to one track, and writes a self-contained folder to disk with a metadata sidecar. No server, no upload, no accounts.
 
 ---
 
@@ -29,10 +29,10 @@ Plain `xcodebuild build` defaults to **Debug** and writes into Xcode’s Derived
 ```bash
 cd /Users/sriramkasyapmeduri/Works/SK/mac-screen-recorder
 xcodegen generate -s project.yml
-open LocalLoom.xcodeproj
+open Specreel.xcodeproj
 ```
 
-Then select the `LocalLoom` scheme and Product → Run (⌘R).
+Then select the `Specreel` scheme and Product → Run (⌘R).
 
 **B. CLI with a local `build/` folder**
 
@@ -40,24 +40,24 @@ Then select the `LocalLoom` scheme and Product → Run (⌘R).
 cd /Users/sriramkasyapmeduri/Works/SK/mac-screen-recorder
 xcodegen generate -s project.yml
 xcodebuild build \
-  -project LocalLoom.xcodeproj \
-  -scheme LocalLoom \
+  -project Specreel.xcodeproj \
+  -scheme Specreel \
   -configuration Debug \
   -destination 'platform=macOS' \
   SYMROOT="$(pwd)/build"
-open build/Debug/LocalLoom.app
+open build/Debug/Specreel.app
 ```
 
 For a Release build (creates `build/Release/`):
 
 ```bash
 xcodebuild build \
-  -project LocalLoom.xcodeproj \
-  -scheme LocalLoom \
+  -project Specreel.xcodeproj \
+  -scheme Specreel \
   -configuration Release \
   -destination 'platform=macOS' \
   SYMROOT="$(pwd)/build"
-open build/Release/LocalLoom.app
+open build/Release/Specreel.app
 ```
 
 **C. Helper script**
@@ -68,10 +68,10 @@ open build/Release/LocalLoom.app
 
 ### Option 2: Run the pre-built app
 
-If you have a pre-built `LocalLoom.app`, move it to `/Applications/` or run directly:
+If you have a pre-built `Specreel.app`, move it to `/Applications/` or run directly:
 
 ```bash
-open /Applications/LocalLoom.app
+open /Applications/Specreel.app
 ```
 
 First launch will prompt for permissions (see below).
@@ -95,13 +95,13 @@ A **stable signing identity** was set up during the build. The project uses:
 - **On your Mac:** the current identity works as-is for development builds. Just run `xcodebuild build` or open in Xcode and hit Run.
 - **On another Mac you own (same Apple ID):** signing may work if the other Mac is logged into the same Apple Developer account. If not, use a **self-signed cert**:
   ```bash
-  security create-keychain -p temp localloom.keychain
-  security add-certificates -k localloom.keychain
-  security codesign -s - --force LocalLoom.app
+  security create-keychain -p temp specreel.keychain
+  security add-certificates -k specreel.keychain
+  security codesign -s - --force Specreel.app
   ```
 - **For distribution to other people:** you need a **Developer ID** certificate from your Apple Developer account ($99/year). Then:
   ```bash
-  codesign --force --deep --options runtime --sign "Developer ID: Your Name (TEAMID)" LocalLoom.app
+  codesign --force --deep --options runtime --sign "Developer ID: Your Name (TEAMID)" Specreel.app
   ```
 - **Critical:** ad-hoc signed builds lose Screen Recording permission on every binary hash change (every rebuild). The manual Developer ID setup above prevents this pain.
 
@@ -113,9 +113,9 @@ The app needs three TCC (Transparency, Consent, and Control) permissions. macOS 
 
 | Permission | Why | How to grant |
 |-----------|-----|--------------|
-| **Screen Recording** | Capture display / window / region content | System Settings → Privacy & Security → Screen Recording → enable LocalLoom |
-| **Microphone** | Record narration via built-in or external mic | System Settings → Privacy & Security → Microphone → enable LocalLoom |
-| **Camera** | Optional webcam PiP overlay | System Settings → Privacy & Security → Camera → enable LocalLoom |
+| **Screen Recording** | Capture display / window / region content | System Settings → Privacy & Security → Screen Recording → enable Specreel |
+| **Microphone** | Record narration via built-in or external mic | System Settings → Privacy & Security → Microphone → enable Specreel |
+| **Camera** | Optional webcam PiP overlay | System Settings → Privacy & Security → Camera → enable Specreel |
 
 ### Rebuild re-prompt gotcha
 
@@ -124,13 +124,13 @@ Every time the binary changes (rebuild, re-sign), macOS may invalidate the Scree
 ### If permissions stop working
 
 ```bash
-# Reset TCC for LocalLoom (requires SIP-disabled or full disk access)
-tccutil reset ScreenCapture com.localloom.app
-tccutil reset Microphone com.localloom.app
-tccutil reset Camera com.localloom.app
+# Reset TCC for Specreel (requires SIP-disabled or full disk access)
+tccutil reset ScreenCapture dev.yagna.specreel
+tccutil reset Microphone dev.yagna.specreel
+tccutil reset Camera dev.yagna.specreel
 ```
 
-Or manually: System Settings → Privacy & Security → remove LocalLoom from each list, then re-launch and re-grant.
+Or manually: System Settings → Privacy & Security → remove Specreel from each list, then re-launch and re-grant.
 
 ---
 
@@ -157,7 +157,7 @@ Toggle **webcam** and **mic** as needed.
 A **Save Recording** panel floats in the center of your screen:
 - **Title** — pre-filled from the source app + date; editable
 - **Description** — optional notes
-- **Save** — writes the recording folder to `~/Movies/LocalLoom/`
+- **Save** — writes the recording folder to `~/Movies/Specreel/`
 - **Discard** (or Escape) — deletes the temp file
 
 ### Gallery
@@ -180,14 +180,14 @@ A global start/stop shortcut is registered via the `KeyboardShortcuts` SPM packa
 
 | Item | Location |
 |------|----------|
-| Video files | `~/Movies/LocalLoom/` |
+| Video files | `~/Movies/Specreel/` |
 | Folder format | `<timestamp>-<id>/` |
 | Files per folder | `recording.mp4`, `thumbnail.jpg`, `meta.json` |
 
 ### Folder format example
 
 ```
-~/Movies/LocalLoom/
+~/Movies/Specreel/
   2026-09-15-143022-a3f9c1/
     recording.mp4
     thumbnail.jpg
@@ -204,14 +204,14 @@ Each folder is fully self-contained. To back up:
 rclone config
 
 # Sync recordings to R2
-rclone copy ~/Movies/LocalLoom/ r2:my-bucket/localloom-backups/
+rclone copy ~/Movies/Specreel/ r2:my-bucket/specreel-backups/
 ```
 
 The folder-per-recording format means `rclone copy` will incrementally sync new recordings without any export step.
 
 To restore a recording from backup:
 ```bash
-rclone copy r2:my-bucket/localloom-backups/2026-09-15-143022-a3f9c1/ ~/Movies/LocalLoom/2026-09-15-143022-a3f9c1/
+rclone copy r2:my-bucket/specreel-backups/2026-09-15-143022-a3f9c1/ ~/Movies/Specreel/2026-09-15-143022-a3f9c1/
 ```
 
 ---
@@ -224,12 +224,12 @@ rclone copy r2:my-bucket/localloom-backups/2026-09-15-143022-a3f9c1/ ~/Movies/Lo
 cd /Users/sriramkasyapmeduri/Works/SK/mac-screen-recorder
 xcodegen generate -s project.yml   # Only needed if project.yml changed
 xcodebuild build \
-  -project LocalLoom.xcodeproj \
-  -scheme LocalLoom \
+  -project Specreel.xcodeproj \
+  -scheme Specreel \
   -configuration Debug \
   -destination 'platform=macOS' \
   SYMROOT="$(pwd)/build"
-open build/Debug/LocalLoom.app
+open build/Debug/Specreel.app
 ```
 
 Or `./scripts/dev.sh run`, or Cmd+R in Xcode.
@@ -241,8 +241,8 @@ Add the file path to `project.yml` under `sources`, then re-run `xcodegen genera
 ### If you need to clean everything
 
 ```bash
-xcodebuild clean -project LocalLoom.xcodeproj -scheme LocalLoom
-rm -rf ~/Library/Developer/Xcode/DerivedData/LocalLoom-*
+xcodebuild clean -project Specreel.xcodeproj -scheme Specreel
+rm -rf ~/Library/Developer/Xcode/DerivedData/Specreel-*
 ```
 
 ---

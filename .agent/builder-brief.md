@@ -1,11 +1,11 @@
-# Local Loom — Builder Brief for Cursor Agent
+# Specreel — Builder Brief for Cursor Agent
 
 ## Mission
-Build a fully functional native macOS screen recorder app called "Local Loom" from scratch. The TRD is at `docs/LocalLoom-TRD.md`. Read it first — it contains all architecture, module contracts, acceptance criteria, and process rules.
+Build a fully functional native macOS screen recorder app called "Specreel" from scratch. The TRD is at `docs/Specreel-TRD.md`. Read it first — it contains all architecture, module contracts, acceptance criteria, and process rules.
 
 ## Source Material
 - **Plan:** `docs/screen-recorder-build-plan.md` (the original plan doc)
-- **TRD:** `docs/LocalLoom-TRD.md` (the authoritative technical requirements — the builder's bible)
+- **TRD:** `docs/Specreel-TRD.md` (the authoritative technical requirements — the builder's bible)
 - **Decision log:** `.agent/decision-log.md`
 
 ## Build Approach: Milestone-by-Milestone (M0→M7)
@@ -78,7 +78,7 @@ Build in order. Each milestone has an acceptance test in the TRD §3. DO NOT adv
 10. **Include unit tests** per TRD §7: AudioMixer, coordinate conversion, meta.json validation, RecordingStore tests.
 
 ## On-Disk Model
-- Recordings at ~/Movies/LocalLoom/<timestamp>-<id>/
+- Recordings at ~/Movies/Specreel/<timestamp>-<id>/
 - Each folder: recording.mp4, thumbnail.jpg, meta.json
 - meta.json schema in TRD §1.4
 

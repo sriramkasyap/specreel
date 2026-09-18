@@ -1,0 +1,801 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0FD12FF5BAC004B09E5E51C3 /* RecordingInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AB54B4EDC6B11BA9A29223C /* RecordingInspector.swift */; };
+		1391901B09D998CBAD465C8E /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A87DE84034DB3969F81034B8 /* MenuBarController.swift */; };
+		2359F38CE3846E9B91E43B12 /* RecordingConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18711745F58654E16316FEFE /* RecordingConfigView.swift */; };
+		2EF9B95F8E412EB69A6B06C5 /* ScreenCaptureAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E989C7D7F3FB11EE3A1CD9E /* ScreenCaptureAccess.swift */; };
+		39F6F20D693F6F0CBFDA46DC /* SpecreelTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9FFD303CF01BDA1AF82D55 /* SpecreelTheme.swift */; };
+		3B86F5D8F365B4032CEF680F /* CountdownOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 327D042F1C2939A62E82332E /* CountdownOverlay.swift */; };
+		4BA6DA93AD12E4E9A399CC9A /* AudioMixer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F7609BD05BA454996E542EA /* AudioMixer.swift */; };
+		5CD26B3F2AB5E9D6DC783B0F /* LibrarySidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B2179A4BC1078D175B6A1E /* LibrarySidebar.swift */; };
+		65CBFE4A831DB132287D89F6 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 641B9B72F0BF120370A53BC5 /* KeyboardShortcuts */; };
+		66415BD34D8AFA07A4BF6921 /* SpecreelApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E88E79C102526F0B0637B26C /* SpecreelApp.swift */; };
+		67787480B4291D17E434D22B /* Compositor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7964403CDB337B6D4EEE3BD6 /* Compositor.swift */; };
+		681E78331846B4555EAA513D /* CaptureSourcePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA252754A5580D5544487E0 /* CaptureSourcePicker.swift */; };
+		723B1821537B6BEE0E5AD3A3 /* CoordinateConversionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C93C275BED0586F9C0BAE11 /* CoordinateConversionTests.swift */; };
+		75AD44745163B3D0D6F259D6 /* CapturePreviewCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 924D989648FC5D545D335C13 /* CapturePreviewCanvas.swift */; };
+		82E30541E089FDC18D5AE2AA /* CoordinateConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14EDDDECD5319154D251BA60 /* CoordinateConversion.swift */; };
+		8BEE1D80DE2C91668C9EE7C3 /* FloatingControlPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE34FE7F9FF5A2B4C7F35D9E /* FloatingControlPill.swift */; };
+		8F86604D24E761F7DE63CC44 /* RecordingConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 216FC2353F4CA46411FDE795 /* RecordingConfig.swift */; };
+		8F90734E964C1A60F6177675 /* WriterFinalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29F48C3B9A8DEEE189B86C6C /* WriterFinalizationTests.swift */; };
+		912A06C71AF53FE4576AB2AC /* WebcamLatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = C838FA214F7B08732C814D93 /* WebcamLatch.swift */; };
+		96661C068E6820C9272FE43D /* PostRecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 076186B9D2B1A10E39BFD230 /* PostRecordingPanel.swift */; };
+		97AF5AA90C2D1FBACB70727B /* WebcamPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A8C69A93A6AA224E2D8E62A /* WebcamPreviewView.swift */; };
+		A013B94E1E398A98C726D9B5 /* RecordingSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0198C1A84C76F0D1F80FC81F /* RecordingSessionController.swift */; };
+		A09A85246F9EA6A51820FD4D /* RecordingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72837BDEFA49ED110B9199B4 /* RecordingEngine.swift */; };
+		A31393839E97CA5C50CFB333 /* RecordingStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F7C9ED7ED9363659C98A776 /* RecordingStoreTests.swift */; };
+		A4FA7C6667C540BEB5E1ADEB /* RecordingMeta.swift in Sources */ = {isa = PBXBuildFile; fileRef = 378162F68F8B2B36D9739D17 /* RecordingMeta.swift */; };
+		AA77E2CE4A53A6D563617F5D /* RecordingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24563A8E5FC44118DE19B22A /* RecordingStore.swift */; };
+		B80661AF7ADA23BE4E52C975 /* AudioMixerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB882C2338532BFC68D6A084 /* AudioMixerTests.swift */; };
+		C7E886C2F857D7A341252573 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1757C5AE39F539BAF60FD45 /* AppDelegate.swift */; };
+		D19C6C4840E67BF44375A8BD /* HotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD4FB1A5EE851CA4B80E4F8 /* HotKeyManager.swift */; };
+		D20544FAB9B96ACD34C185A6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D1864143BDF82E3026E75683 /* Assets.xcassets */; };
+		D403D131B8AD4CCDCFCC6D4A /* PipelineTeardownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E5709BEB9CDC5006DB68BF5 /* PipelineTeardownTests.swift */; };
+		DAC919E4FE98850BE828890F /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B7BF33254E963724B670FE4 /* GalleryView.swift */; };
+		EE3A60B2DCED51A08E6384C1 /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D15FF84A131679C16422089 /* MainWindow.swift */; };
+		F6102D2584E16F2387C1651D /* MetaJSONValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48225720EC93CE0CB8DD9FA0 /* MetaJSONValidationTests.swift */; };
+		FE9B969B8F1414866915C57D /* RegionSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C29DBC6C74D67E8722CC9FA0 /* RegionSelector.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0745BC9EC6A9AC04C2BDF725 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 335E32461947E8F1D62E19EA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E62F5D8ED1F5D94CA8FA8F94;
+			remoteInfo = Specreel;
+		};
+		D08AEEE37D7BE9715668FF95 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 335E32461947E8F1D62E19EA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E62F5D8ED1F5D94CA8FA8F94;
+			remoteInfo = Specreel;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0198C1A84C76F0D1F80FC81F /* RecordingSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSessionController.swift; sourceTree = "<group>"; };
+		076186B9D2B1A10E39BFD230 /* PostRecordingPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostRecordingPanel.swift; sourceTree = "<group>"; };
+		0B7BF33254E963724B670FE4 /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
+		0E989C7D7F3FB11EE3A1CD9E /* ScreenCaptureAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureAccess.swift; sourceTree = "<group>"; };
+		14EDDDECD5319154D251BA60 /* CoordinateConversion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoordinateConversion.swift; sourceTree = "<group>"; };
+		159BED5167EA8EF0D3A5C02E /* SpecreelTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpecreelTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		18711745F58654E16316FEFE /* RecordingConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingConfigView.swift; sourceTree = "<group>"; };
+		216FC2353F4CA46411FDE795 /* RecordingConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingConfig.swift; sourceTree = "<group>"; };
+		24563A8E5FC44118DE19B22A /* RecordingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingStore.swift; sourceTree = "<group>"; };
+		29F48C3B9A8DEEE189B86C6C /* WriterFinalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriterFinalizationTests.swift; sourceTree = "<group>"; };
+		327D042F1C2939A62E82332E /* CountdownOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownOverlay.swift; sourceTree = "<group>"; };
+		378162F68F8B2B36D9739D17 /* RecordingMeta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingMeta.swift; sourceTree = "<group>"; };
+		38F5836910C543F343EEEE8E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3AB54B4EDC6B11BA9A29223C /* RecordingInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingInspector.swift; sourceTree = "<group>"; };
+		3B00CA1401A500FACEA2EC77 /* Specreel.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Specreel.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		48225720EC93CE0CB8DD9FA0 /* MetaJSONValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetaJSONValidationTests.swift; sourceTree = "<group>"; };
+		4C93C275BED0586F9C0BAE11 /* CoordinateConversionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoordinateConversionTests.swift; sourceTree = "<group>"; };
+		5A037AA3E251F93AB2AEE3E3 /* Specreel.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Specreel.entitlements; sourceTree = "<group>"; };
+		6A0BD50FA59D243394C307B9 /* SpecreelIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpecreelIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6A8C69A93A6AA224E2D8E62A /* WebcamPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamPreviewView.swift; sourceTree = "<group>"; };
+		6AA252754A5580D5544487E0 /* CaptureSourcePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSourcePicker.swift; sourceTree = "<group>"; };
+		72837BDEFA49ED110B9199B4 /* RecordingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingEngine.swift; sourceTree = "<group>"; };
+		7964403CDB337B6D4EEE3BD6 /* Compositor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compositor.swift; sourceTree = "<group>"; };
+		7F7609BD05BA454996E542EA /* AudioMixer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioMixer.swift; sourceTree = "<group>"; };
+		7F7C9ED7ED9363659C98A776 /* RecordingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingStoreTests.swift; sourceTree = "<group>"; };
+		91B2179A4BC1078D175B6A1E /* LibrarySidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySidebar.swift; sourceTree = "<group>"; };
+		924D989648FC5D545D335C13 /* CapturePreviewCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapturePreviewCanvas.swift; sourceTree = "<group>"; };
+		9CD4FB1A5EE851CA4B80E4F8 /* HotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyManager.swift; sourceTree = "<group>"; };
+		9D15FF84A131679C16422089 /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
+		9E5709BEB9CDC5006DB68BF5 /* PipelineTeardownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineTeardownTests.swift; sourceTree = "<group>"; };
+		A87DE84034DB3969F81034B8 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		C29DBC6C74D67E8722CC9FA0 /* RegionSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionSelector.swift; sourceTree = "<group>"; };
+		C838FA214F7B08732C814D93 /* WebcamLatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamLatch.swift; sourceTree = "<group>"; };
+		CC9FFD303CF01BDA1AF82D55 /* SpecreelTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecreelTheme.swift; sourceTree = "<group>"; };
+		D1757C5AE39F539BAF60FD45 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		D1864143BDF82E3026E75683 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DB882C2338532BFC68D6A084 /* AudioMixerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioMixerTests.swift; sourceTree = "<group>"; };
+		E88E79C102526F0B0637B26C /* SpecreelApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecreelApp.swift; sourceTree = "<group>"; };
+		EE34FE7F9FF5A2B4C7F35D9E /* FloatingControlPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingControlPill.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BEC9007F6ADC9D4201DDA83C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				65CBFE4A831DB132287D89F6 /* KeyboardShortcuts in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		04EF0A8D508384E1491E1F3E /* Specreel */ = {
+			isa = PBXGroup;
+			children = (
+				38F5836910C543F343EEEE8E /* Info.plist */,
+				5A037AA3E251F93AB2AEE3E3 /* Specreel.entitlements */,
+				15A1146F9705212E76BC3149 /* App */,
+				7291509E2304EEE590FA0B43 /* Capture */,
+				8EFC24B7BC54EA40B4A64BBA /* Engine */,
+				2AA9C6F399E897FBAF1801AE /* Resources */,
+				3F09716C16F6C42D5587213F /* Storage */,
+				7FBCCBD1F2E0B0B3F5D6D870 /* UI */,
+			);
+			path = Specreel;
+			sourceTree = "<group>";
+		};
+		0CEEB961BFAB4B8384235357 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3B00CA1401A500FACEA2EC77 /* Specreel.app */,
+				6A0BD50FA59D243394C307B9 /* SpecreelIntegrationTests.xctest */,
+				159BED5167EA8EF0D3A5C02E /* SpecreelTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		15A1146F9705212E76BC3149 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D1757C5AE39F539BAF60FD45 /* AppDelegate.swift */,
+				E88E79C102526F0B0637B26C /* SpecreelApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		1643FE5BAE267AB36169098D /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				327D042F1C2939A62E82332E /* CountdownOverlay.swift */,
+				EE34FE7F9FF5A2B4C7F35D9E /* FloatingControlPill.swift */,
+				18711745F58654E16316FEFE /* RecordingConfigView.swift */,
+				0198C1A84C76F0D1F80FC81F /* RecordingSessionController.swift */,
+				6A8C69A93A6AA224E2D8E62A /* WebcamPreviewView.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		1BDE678A281B5D971B469F21 /* Gallery */ = {
+			isa = PBXGroup;
+			children = (
+				0B7BF33254E963724B670FE4 /* GalleryView.swift */,
+				3AB54B4EDC6B11BA9A29223C /* RecordingInspector.swift */,
+			);
+			path = Gallery;
+			sourceTree = "<group>";
+		};
+		2AA9C6F399E897FBAF1801AE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				D1864143BDF82E3026E75683 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		3DA0BDE4AB5B417D216DC03F /* SpecreelIntegrationTests */ = {
+			isa = PBXGroup;
+			children = (
+				9E5709BEB9CDC5006DB68BF5 /* PipelineTeardownTests.swift */,
+				29F48C3B9A8DEEE189B86C6C /* WriterFinalizationTests.swift */,
+			);
+			path = SpecreelIntegrationTests;
+			sourceTree = "<group>";
+		};
+		3F09716C16F6C42D5587213F /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				378162F68F8B2B36D9739D17 /* RecordingMeta.swift */,
+				24563A8E5FC44118DE19B22A /* RecordingStore.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		7291509E2304EEE590FA0B43 /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				6AA252754A5580D5544487E0 /* CaptureSourcePicker.swift */,
+				9CD4FB1A5EE851CA4B80E4F8 /* HotKeyManager.swift */,
+				C29DBC6C74D67E8722CC9FA0 /* RegionSelector.swift */,
+				0E989C7D7F3FB11EE3A1CD9E /* ScreenCaptureAccess.swift */,
+			);
+			path = Capture;
+			sourceTree = "<group>";
+		};
+		7FBCCBD1F2E0B0B3F5D6D870 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				1BDE678A281B5D971B469F21 /* Gallery */,
+				D52822D4D14B8694814F933A /* MainWindow */,
+				FFAA3E88CF38E455458C10CF /* MenuBar */,
+				AEFA2FE80BBFC2F01820ED4C /* PostRecording */,
+				1643FE5BAE267AB36169098D /* Shared */,
+				F539BC5ACA2DC74B9538188A /* Theme */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		8EFC24B7BC54EA40B4A64BBA /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				7F7609BD05BA454996E542EA /* AudioMixer.swift */,
+				7964403CDB337B6D4EEE3BD6 /* Compositor.swift */,
+				14EDDDECD5319154D251BA60 /* CoordinateConversion.swift */,
+				216FC2353F4CA46411FDE795 /* RecordingConfig.swift */,
+				72837BDEFA49ED110B9199B4 /* RecordingEngine.swift */,
+				C838FA214F7B08732C814D93 /* WebcamLatch.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		940AF055CD2DE47CE95C7E90 /* SpecreelTests */ = {
+			isa = PBXGroup;
+			children = (
+				DB882C2338532BFC68D6A084 /* AudioMixerTests.swift */,
+				4C93C275BED0586F9C0BAE11 /* CoordinateConversionTests.swift */,
+				48225720EC93CE0CB8DD9FA0 /* MetaJSONValidationTests.swift */,
+				7F7C9ED7ED9363659C98A776 /* RecordingStoreTests.swift */,
+			);
+			path = SpecreelTests;
+			sourceTree = "<group>";
+		};
+		965ABF7D2266C7298EFAED75 = {
+			isa = PBXGroup;
+			children = (
+				04EF0A8D508384E1491E1F3E /* Specreel */,
+				3DA0BDE4AB5B417D216DC03F /* SpecreelIntegrationTests */,
+				940AF055CD2DE47CE95C7E90 /* SpecreelTests */,
+				0CEEB961BFAB4B8384235357 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AEFA2FE80BBFC2F01820ED4C /* PostRecording */ = {
+			isa = PBXGroup;
+			children = (
+				076186B9D2B1A10E39BFD230 /* PostRecordingPanel.swift */,
+			);
+			path = PostRecording;
+			sourceTree = "<group>";
+		};
+		D52822D4D14B8694814F933A /* MainWindow */ = {
+			isa = PBXGroup;
+			children = (
+				924D989648FC5D545D335C13 /* CapturePreviewCanvas.swift */,
+				91B2179A4BC1078D175B6A1E /* LibrarySidebar.swift */,
+				9D15FF84A131679C16422089 /* MainWindow.swift */,
+			);
+			path = MainWindow;
+			sourceTree = "<group>";
+		};
+		F539BC5ACA2DC74B9538188A /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				CC9FFD303CF01BDA1AF82D55 /* SpecreelTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		FFAA3E88CF38E455458C10CF /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				A87DE84034DB3969F81034B8 /* MenuBarController.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		35327FDB55702C16207C3280 /* SpecreelTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6AB80061DCAAD078C28B725C /* Build configuration list for PBXNativeTarget "SpecreelTests" */;
+			buildPhases = (
+				B491EAF408E9A8E7C865D11C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BCEEE5CEFE2D15297E9F7127 /* PBXTargetDependency */,
+			);
+			name = SpecreelTests;
+			packageProductDependencies = (
+			);
+			productName = SpecreelTests;
+			productReference = 159BED5167EA8EF0D3A5C02E /* SpecreelTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A4DAE8C6313E6EAA307ED7EC /* SpecreelIntegrationTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 90CE75BFF847ECB9868AA77C /* Build configuration list for PBXNativeTarget "SpecreelIntegrationTests" */;
+			buildPhases = (
+				215F9FA7F4DEF71AF60E30F4 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				935D456B42605780ABBCB36C /* PBXTargetDependency */,
+			);
+			name = SpecreelIntegrationTests;
+			packageProductDependencies = (
+			);
+			productName = SpecreelIntegrationTests;
+			productReference = 6A0BD50FA59D243394C307B9 /* SpecreelIntegrationTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E62F5D8ED1F5D94CA8FA8F94 /* Specreel */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB04B90521F2FF35EDAA47C7 /* Build configuration list for PBXNativeTarget "Specreel" */;
+			buildPhases = (
+				EE661EA981BD9D36AC30B2E8 /* Sources */,
+				5B0F47C46A96FB6C88948547 /* Resources */,
+				BEC9007F6ADC9D4201DDA83C /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Specreel;
+			packageProductDependencies = (
+				641B9B72F0BF120370A53BC5 /* KeyboardShortcuts */,
+			);
+			productName = Specreel;
+			productReference = 3B00CA1401A500FACEA2EC77 /* Specreel.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		335E32461947E8F1D62E19EA /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					35327FDB55702C16207C3280 = {
+						DevelopmentTeam = X93VLP8U9X;
+						ProvisioningStyle = Manual;
+					};
+					A4DAE8C6313E6EAA307ED7EC = {
+						DevelopmentTeam = X93VLP8U9X;
+						ProvisioningStyle = Manual;
+					};
+					E62F5D8ED1F5D94CA8FA8F94 = {
+						DevelopmentTeam = X93VLP8U9X;
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 4D4279D98D7FB8FAA48AD5AB /* Build configuration list for PBXProject "Specreel" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 965ABF7D2266C7298EFAED75;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				6AB3E25B1F294747AA093B86 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0CEEB961BFAB4B8384235357 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E62F5D8ED1F5D94CA8FA8F94 /* Specreel */,
+				35327FDB55702C16207C3280 /* SpecreelTests */,
+				A4DAE8C6313E6EAA307ED7EC /* SpecreelIntegrationTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5B0F47C46A96FB6C88948547 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D20544FAB9B96ACD34C185A6 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		215F9FA7F4DEF71AF60E30F4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D403D131B8AD4CCDCFCC6D4A /* PipelineTeardownTests.swift in Sources */,
+				8F90734E964C1A60F6177675 /* WriterFinalizationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B491EAF408E9A8E7C865D11C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B80661AF7ADA23BE4E52C975 /* AudioMixerTests.swift in Sources */,
+				723B1821537B6BEE0E5AD3A3 /* CoordinateConversionTests.swift in Sources */,
+				F6102D2584E16F2387C1651D /* MetaJSONValidationTests.swift in Sources */,
+				A31393839E97CA5C50CFB333 /* RecordingStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EE661EA981BD9D36AC30B2E8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C7E886C2F857D7A341252573 /* AppDelegate.swift in Sources */,
+				4BA6DA93AD12E4E9A399CC9A /* AudioMixer.swift in Sources */,
+				75AD44745163B3D0D6F259D6 /* CapturePreviewCanvas.swift in Sources */,
+				681E78331846B4555EAA513D /* CaptureSourcePicker.swift in Sources */,
+				67787480B4291D17E434D22B /* Compositor.swift in Sources */,
+				82E30541E089FDC18D5AE2AA /* CoordinateConversion.swift in Sources */,
+				3B86F5D8F365B4032CEF680F /* CountdownOverlay.swift in Sources */,
+				8BEE1D80DE2C91668C9EE7C3 /* FloatingControlPill.swift in Sources */,
+				DAC919E4FE98850BE828890F /* GalleryView.swift in Sources */,
+				D19C6C4840E67BF44375A8BD /* HotKeyManager.swift in Sources */,
+				5CD26B3F2AB5E9D6DC783B0F /* LibrarySidebar.swift in Sources */,
+				EE3A60B2DCED51A08E6384C1 /* MainWindow.swift in Sources */,
+				1391901B09D998CBAD465C8E /* MenuBarController.swift in Sources */,
+				96661C068E6820C9272FE43D /* PostRecordingPanel.swift in Sources */,
+				8F86604D24E761F7DE63CC44 /* RecordingConfig.swift in Sources */,
+				2359F38CE3846E9B91E43B12 /* RecordingConfigView.swift in Sources */,
+				A09A85246F9EA6A51820FD4D /* RecordingEngine.swift in Sources */,
+				0FD12FF5BAC004B09E5E51C3 /* RecordingInspector.swift in Sources */,
+				A4FA7C6667C540BEB5E1ADEB /* RecordingMeta.swift in Sources */,
+				A013B94E1E398A98C726D9B5 /* RecordingSessionController.swift in Sources */,
+				AA77E2CE4A53A6D563617F5D /* RecordingStore.swift in Sources */,
+				FE9B969B8F1414866915C57D /* RegionSelector.swift in Sources */,
+				2EF9B95F8E412EB69A6B06C5 /* ScreenCaptureAccess.swift in Sources */,
+				66415BD34D8AFA07A4BF6921 /* SpecreelApp.swift in Sources */,
+				39F6F20D693F6F0CBFDA46DC /* SpecreelTheme.swift in Sources */,
+				912A06C71AF53FE4576AB2AC /* WebcamLatch.swift in Sources */,
+				97AF5AA90C2D1FBACB70727B /* WebcamPreviewView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		935D456B42605780ABBCB36C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E62F5D8ED1F5D94CA8FA8F94 /* Specreel */;
+			targetProxy = 0745BC9EC6A9AC04C2BDF725 /* PBXContainerItemProxy */;
+		};
+		BCEEE5CEFE2D15297E9F7127 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E62F5D8ED1F5D94CA8FA8F94 /* Specreel */;
+			targetProxy = D08AEEE37D7BE9715668FF95 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		30475AEC90D7EF52E6323F2E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Specreel/Specreel.entitlements;
+				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X93VLP8U9X;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Specreel/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.yagna.specreel;
+				PRODUCT_NAME = Specreel;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Debug;
+		};
+		389AE298CD13ED84728B6F7D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = X93VLP8U9X;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		41920B4BEF955F569200A7ED /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = X93VLP8U9X;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.yagna.specreel.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Specreel.app/Contents/MacOS/Specreel";
+			};
+			name = Release;
+		};
+		4606DC0AB916F48F545CC11F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = X93VLP8U9X;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		842E30676A2F7A0FF5905FD2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Specreel/Specreel.entitlements;
+				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = X93VLP8U9X;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Specreel/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.yagna.specreel;
+				PRODUCT_NAME = Specreel;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Release;
+		};
+		A7D0C39748B9B4514D280E22 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = X93VLP8U9X;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.yagna.specreel.integrationtests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Specreel.app/Contents/MacOS/Specreel";
+			};
+			name = Debug;
+		};
+		BCC461A2CBA58333FE26F50C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = X93VLP8U9X;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.yagna.specreel.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Specreel.app/Contents/MacOS/Specreel";
+			};
+			name = Debug;
+		};
+		E4820F82AB4B6F37116F0F81 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = X93VLP8U9X;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.yagna.specreel.integrationtests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Specreel.app/Contents/MacOS/Specreel";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4D4279D98D7FB8FAA48AD5AB /* Build configuration list for PBXProject "Specreel" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4606DC0AB916F48F545CC11F /* Debug */,
+				389AE298CD13ED84728B6F7D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6AB80061DCAAD078C28B725C /* Build configuration list for PBXNativeTarget "SpecreelTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BCC461A2CBA58333FE26F50C /* Debug */,
+				41920B4BEF955F569200A7ED /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		90CE75BFF847ECB9868AA77C /* Build configuration list for PBXNativeTarget "SpecreelIntegrationTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A7D0C39748B9B4514D280E22 /* Debug */,
+				E4820F82AB4B6F37116F0F81 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AB04B90521F2FF35EDAA47C7 /* Build configuration list for PBXNativeTarget "Specreel" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				30475AEC90D7EF52E6323F2E /* Debug */,
+				842E30676A2F7A0FF5905FD2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6AB3E25B1F294747AA093B86 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		641B9B72F0BF120370A53BC5 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6AB3E25B1F294747AA093B86 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 335E32461947E8F1D62E19EA /* Project object */;
+}
