@@ -2,12 +2,12 @@ import SwiftUI
 import AppKit
 import AVKit
 
-/// Library grid: newest first, live updates via `RecordingStore`.
+/// Library grid matching the layout mock: 16:9 cards, min 240pt, 16pt spacing.
 struct GalleryView: View {
     @Environment(RecordingStore.self) private var store
 
     @Binding var selection: RecordingEntry.ID?
-    var filter: LibraryDestination
+    var filter: LibraryFilter
     @Binding var searchText: String
     var sort: SortKey
 
@@ -18,8 +18,8 @@ struct GalleryView: View {
 
         var title: String {
             switch self {
-            case .dateNewest: return "Newest"
-            case .dateOldest: return "Oldest"
+            case .dateNewest: return "Newest first"
+            case .dateOldest: return "Oldest first"
             case .durationLongest: return "Longest"
             case .durationShortest: return "Shortest"
             }
@@ -32,15 +32,17 @@ struct GalleryView: View {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         var items = store.recordings
         switch filter {
-        case .newRecording:
-            break
         case .all:
             break
         case .recents:
             let cutoff = Date().addingTimeInterval(-14 * 24 * 60 * 60)
             items = items.filter { $0.meta.createdAt >= cutoff }
-        case .camera:
-            items = items.filter(\.meta.hasWebcam)
+        case .screen:
+            items = items.filter { $0.meta.source.type == .display }
+        case .window:
+            items = items.filter { $0.meta.source.type == .window }
+        case .region:
+            items = items.filter { $0.meta.source.type == .region }
         }
         if !q.isEmpty {
             items = items.filter {
@@ -57,33 +59,47 @@ struct GalleryView: View {
         return items
     }
 
+    private var totalBytes: Int64 {
+        filtered.reduce(0) { $0 + $1.meta.fileSize }
+    }
+
     var body: some View {
-        Group {
-            if filtered.isEmpty {
-                ContentUnavailableView {
-                    Label(emptyTitle, systemImage: "film.stack")
-                } description: {
-                    Text(emptyDescription)
-                }
-            } else {
-                ScrollView {
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 220), spacing: 16)],
-                        spacing: 18
-                    ) {
-                        ForEach(filtered) { entry in
-                            GalleryThumbnailCell(
-                                entry: entry,
-                                isSelected: selection == entry.id
-                            )
-                            .onTapGesture { selection = entry.id }
-                            .contextMenu { contextMenu(for: entry) }
-                        }
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
+
+            Group {
+                if filtered.isEmpty {
+                    ContentUnavailableView {
+                        Label(emptyTitle, systemImage: "film.stack")
+                    } description: {
+                        Text(emptyDescription)
                     }
-                    .padding(20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVGrid(
+                            columns: [GridItem(.adaptive(minimum: 240), spacing: 16)],
+                            spacing: 16
+                        ) {
+                            ForEach(filtered) { entry in
+                                GalleryThumbnailCell(
+                                    entry: entry,
+                                    isSelected: selection == entry.id
+                                )
+                                .onTapGesture { selection = entry.id }
+                                .contextMenu { contextMenu(for: entry) }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+                    }
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .textBackgroundColor))
         .confirmationDialog(
             "Move this recording to Trash?",
@@ -109,12 +125,25 @@ struct GalleryView: View {
         }
     }
 
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(filter.title)
+                .font(.title2.weight(.bold))
+            Text("\(filtered.count) items · \(LoomTheme.fileSize(totalBytes))")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+    }
+
     private var emptyTitle: String {
         if !searchText.isEmpty { return "No Matches" }
         switch filter {
-        case .camera: return "No Camera Recordings"
         case .recents: return "Nothing Recent"
-        default: return "No Recordings"
+        case .screen: return "No Screen Recordings"
+        case .window: return "No Window Recordings"
+        case .region: return "No Region Recordings"
+        case .all: return "No Recordings"
         }
     }
 
@@ -122,14 +151,7 @@ struct GalleryView: View {
         if !searchText.isEmpty {
             return "No recordings match your search."
         }
-        switch filter {
-        case .camera:
-            return "Recordings that include the webcam will show up here."
-        case .recents:
-            return "Clips from the last 14 days will appear here."
-        default:
-            return "Start a recording from the menu bar or New Recording."
-        }
+        return "Click New Recording in the toolbar to capture your screen."
     }
 
     @ViewBuilder
@@ -155,23 +177,11 @@ private struct GalleryThumbnailCell: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .bottomTrailing) {
+            ZStack(alignment: .bottomLeading) {
                 thumbnail
                     .frame(maxWidth: .infinity)
                     .aspectRatio(16 / 9, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: LoomTheme.cardRadius, style: .continuous))
-
-                if entry.meta.hasWebcam {
-                    Circle()
-                        .fill(Color.black.opacity(0.35))
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.9))
-                        )
-                        .padding(10)
-                }
 
                 Text(LoomTheme.duration(entry.meta.duration))
                     .font(.caption2.monospacedDigit().weight(.semibold))
@@ -180,21 +190,39 @@ private struct GalleryThumbnailCell: View {
                     .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
                     .foregroundStyle(.white)
                     .padding(8)
+
+                if entry.meta.hasWebcam {
+                    Circle()
+                        .fill(.black.opacity(0.35))
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.9))
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                        .padding(10)
+                }
             }
             .overlay(
                 RoundedRectangle(cornerRadius: LoomTheme.cardRadius, style: .continuous)
-                    .strokeBorder(isSelected ? Color.accentColor : .black.opacity(0.06), lineWidth: isSelected ? 2 : 1)
+                    .strokeBorder(isSelected ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
             )
 
             Text(entry.meta.title.isEmpty ? "Untitled" : entry.meta.title)
                 .font(.subheadline.weight(.semibold))
-                .lineLimit(2)
+                .lineLimit(1)
 
-            Text(entry.meta.createdAt.formatted(date: .abbreviated, time: .shortened))
+            Text(caption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
-        .padding(4)
+    }
+
+    private var caption: String {
+        let date = entry.meta.createdAt.formatted(.dateTime.day().month(.abbreviated))
+        return "\(date) · \(LoomTheme.fileSize(entry.meta.fileSize))"
     }
 
     @ViewBuilder

@@ -1,77 +1,84 @@
 import SwiftUI
 
-enum LibraryDestination: Hashable, Identifiable {
-    case newRecording
+enum LibraryFilter: Hashable, Identifiable {
     case all
     case recents
-    case camera
+    case screen
+    case window
+    case region
 
     var id: String {
         switch self {
-        case .newRecording: return "new"
         case .all: return "all"
         case .recents: return "recents"
-        case .camera: return "camera"
+        case .screen: return "screen"
+        case .window: return "window"
+        case .region: return "region"
         }
     }
 
     var title: String {
         switch self {
-        case .newRecording: return "New Recording"
         case .all: return "All Recordings"
-        case .recents: return "Recents"
-        case .camera: return "Camera"
+        case .recents: return "Recent"
+        case .screen: return "Screen"
+        case .window: return "Window"
+        case .region: return "Region"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .newRecording: return "plus.rectangle.on.rectangle"
         case .all: return "film.stack"
         case .recents: return "clock"
-        case .camera: return "video"
+        case .screen: return "display"
+        case .window: return "macwindow"
+        case .region: return "rectangle.dashed"
         }
     }
 }
 
+/// 200pt sidebar from the layout mock: Library + Source, with counts.
 struct LibrarySidebar: View {
     @Environment(RecordingStore.self) private var store
-    @Binding var destination: LibraryDestination
+    @Binding var filter: LibraryFilter
+    var onSelectFilter: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            List(selection: $destination) {
-                Section {
-                    sidebarRow(.newRecording)
-                }
-
-                Section("Library") {
-                    sidebarRow(.all)
-                    sidebarRow(.recents)
-                    sidebarRow(.camera)
-                }
+        List(selection: $filter) {
+            Section("Library") {
+                sidebarRow(.all, badge: store.recordings.count)
+                sidebarRow(.recents, badge: nil)
             }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-
-            Spacer(minLength: 0)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(store.recordings.count) recordings")
-                    .font(.caption.weight(.medium))
-                Text(store.rootURL.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+            Section("Source") {
+                sidebarRow(.screen, badge: count(for: .display))
+                sidebarRow(.window, badge: count(for: .window))
+                sidebarRow(.region, badge: count(for: .region))
             }
-            .padding(12)
         }
-        .frame(minWidth: 168, idealWidth: LoomTheme.sidebarWidth, maxWidth: 220)
-        .background(LoomTheme.sidebarBackground)
+        .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .onChange(of: filter) { _, _ in
+            onSelectFilter()
+        }
     }
 
-    private func sidebarRow(_ destination: LibraryDestination) -> some View {
-        Label(destination.title, systemImage: destination.systemImage)
-            .tag(destination)
+    private func sidebarRow(_ filter: LibraryFilter, badge: Int?) -> some View {
+        HStack {
+            Label(filter.title, systemImage: filter.systemImage)
+            Spacer()
+            if let badge {
+                Text("\(badge)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .tag(filter)
+        .contentShape(Rectangle())
+    }
+
+    private func count(for type: RecordingMeta.SourceType) -> Int {
+        store.recordings.filter { $0.meta.source.type == type }.count
     }
 }

@@ -18,7 +18,7 @@ struct LocalLoomApp: App {
                 .environment(store)
                 .environment(engine)
                 .environment(session)
-                .frame(minWidth: 980, minHeight: 620)
+                .frame(minWidth: 1000, minHeight: 640)
         }
         .defaultSize(width: 1180, height: 740)
         .commands {

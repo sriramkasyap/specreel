@@ -1,52 +1,81 @@
 import SwiftUI
 
-/// Three-column Local Loom window: library sidebar, gallery or capture canvas, inspector.
+/// Full-window three-column library matching the layout mock:
+/// 200pt sidebar, flexible gallery/canvas, 320pt inspector that collapses
+/// when nothing is selected.
 struct MainWindow: View {
     @Environment(RecordingConfig.self) private var config
     @Environment(RecordingEngine.self) private var engine
     @Environment(RecordingStore.self) private var store
     @Environment(RecordingSessionController.self) private var session
 
-    @State private var destination: LibraryDestination = .all
+    @State private var filter: LibraryFilter = .all
+    @State private var isNewRecording = false
+    @State private var sidebarVisible = true
     @State private var selection: RecordingEntry.ID?
     @State private var searchText = ""
     @State private var sort: GalleryView.SortKey = .dateNewest
 
     var body: some View {
-        NavigationStack {
+        GeometryReader { geo in
             HSplitView {
-                LibrarySidebar(destination: $destination)
+                if sidebarVisible {
+                    LibrarySidebar(filter: $filter) {
+                        isNewRecording = false
+                    }
+                    .frame(minWidth: 180, idealWidth: 200, maxWidth: 240)
+                    .frame(maxHeight: .infinity)
+                }
 
                 contentColumn
-                    .frame(minWidth: 440)
+                    .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
 
-                inspectorColumn
-                    .frame(minWidth: 280, idealWidth: LoomTheme.inspectorWidth, maxWidth: 380)
+                if showsInspector {
+                    inspectorColumn
+                        .frame(minWidth: 300, idealWidth: 320, maxWidth: 380)
+                        .frame(maxHeight: .infinity)
+                }
             }
-            .background(Color(nsColor: .windowBackgroundColor))
+            .frame(width: geo.size.width, height: geo.size.height)
         }
-        .navigationTitle(destination.title)
-        .searchable(text: $searchText, prompt: "Search title or description")
+        .frame(minWidth: 1000, minHeight: 640)
+        .background(Color(nsColor: .windowBackgroundColor))
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    sidebarVisible.toggle()
+                } label: {
+                    Image(systemName: "sidebar.leading")
+                }
+                .help("Toggle sidebar")
+            }
+
             ToolbarItem(placement: .automatic) {
-                if destination != .newRecording {
+                if !isNewRecording {
+                    TextField("Search", text: $searchText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 140, idealWidth: 180)
+                        .help("Search title or description")
+                }
+            }
+
+            ToolbarItem(placement: .automatic) {
+                if !isNewRecording {
                     Picker("Sort", selection: $sort) {
                         ForEach(GalleryView.SortKey.allCases) { key in
                             Text(key.title).tag(key)
                         }
                     }
                     .pickerStyle(.menu)
+                    .frame(width: 120)
                 }
             }
+
             ToolbarItem(placement: .primaryAction) {
-                toolbarRecordButton
+                toolbarPrimaryButton
             }
         }
-        .onChange(of: destination) { _, newValue in
-            if newValue == .newRecording {
-                searchText = ""
-            }
-        }
+        .navigationTitle(isNewRecording ? "New Recording" : filter.title)
         .task {
             store.scan()
         }
@@ -54,30 +83,35 @@ struct MainWindow: View {
 
     @ViewBuilder
     private var contentColumn: some View {
-        if destination == .newRecording {
+        if isNewRecording {
             CapturePreviewCanvas { id in
                 selection = id
-                destination = .all
+                isNewRecording = false
+                filter = .all
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             GalleryView(
                 selection: $selection,
-                filter: destination,
+                filter: filter,
                 searchText: $searchText,
                 sort: sort
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private var showsInspector: Bool {
+        isNewRecording || selectedEntry != nil
     }
 
     @ViewBuilder
     private var inspectorColumn: some View {
-        if destination == .newRecording {
+        if isNewRecording {
             newRecordingInspector
         } else if let entry = selectedEntry {
             RecordingInspector(entry: entry)
                 .id(entry.id)
-        } else {
-            EmptyInspector()
         }
     }
 
@@ -100,6 +134,16 @@ struct MainWindow: View {
                             await session.start(engine: engine, config: config, store: store)
                         }
                     }
+                } else if session.isBusy {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Saving recording…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
                 } else {
                     HStack(spacing: 8) {
                         if engine.phase == .recording {
@@ -122,28 +166,34 @@ struct MainWindow: View {
             }
             .padding(16)
         }
-        .background(LoomTheme.inspectorBackground)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     @ViewBuilder
-    private var toolbarRecordButton: some View {
-        if engine.phase == .idle {
-            Button {
-                if destination == .newRecording {
-                    Task { await session.start(engine: engine, config: config, store: store) }
-                } else {
-                    destination = .newRecording
-                }
-            } label: {
-                Label("Record", systemImage: "record.circle.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(LoomTheme.record)
-        } else {
+    private var toolbarPrimaryButton: some View {
+        if engine.phase != .idle {
             Button {
                 Task { await session.stop(engine: engine, store: store) }
             } label: {
                 Label(LoomTheme.duration(engine.elapsed), systemImage: "stop.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(LoomTheme.record)
+        } else if isNewRecording {
+            Button {
+                Task { await session.start(engine: engine, config: config, store: store) }
+            } label: {
+                Label("Start recording", systemImage: "record.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(LoomTheme.record)
+            .disabled(session.isBusy)
+        } else {
+            Button {
+                isNewRecording = true
+            } label: {
+                Label("New Recording", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
             .tint(LoomTheme.record)

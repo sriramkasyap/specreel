@@ -148,6 +148,11 @@ final class RecordingEngine: @unchecked Sendable {
     /// appends once teardown begins.
     private var isStopping = false
     private var writerFinalized = false
+    private var didAppendAudio = false
+
+    /// Single-flight stop so the pill and the window can't both finalize.
+    private let stopLock = NSLock()
+    private var inFlightStop: Task<RecordingResult, Error>?
 
     // MARK: - Public API
 
@@ -182,6 +187,7 @@ final class RecordingEngine: @unchecked Sendable {
         screenDrainScheduled = false
         isStopping = false
         writerFinalized = false
+        didAppendAudio = false
         await publishElapsed(0)
 
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -257,6 +263,29 @@ final class RecordingEngine: @unchecked Sendable {
 
     @discardableResult
     func stop() async throws -> RecordingResult {
+        stopLock.lock()
+        if let inFlight = inFlightStop {
+            stopLock.unlock()
+            return try await inFlight.value
+        }
+        let task = Task { try await self.performStop() }
+        inFlightStop = task
+        stopLock.unlock()
+        do {
+            let result = try await task.value
+            stopLock.lock()
+            inFlightStop = nil
+            stopLock.unlock()
+            return result
+        } catch {
+            stopLock.lock()
+            inFlightStop = nil
+            stopLock.unlock()
+            throw error
+        }
+    }
+
+    private func performStop() async throws -> RecordingResult {
         guard phase == .recording || phase == .paused else {
             throw RecordingEngineError.notRecording
         }
@@ -264,10 +293,12 @@ final class RecordingEngine: @unchecked Sendable {
         elapsedTickerTask?.cancel()
         elapsedTickerTask = nil
 
-        // 1) Reject further samples immediately (before touching the writer).
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            pipelineQueue.async {
-                self.isStopping = true
+        // Set this without waiting on pipelineQueue — a hung compositor on that
+        // queue must not block Stop from starting teardown.
+        isStopping = true
+
+        await Self.resumeOnce(seconds: 1.0) { resume in
+            self.pipelineQueue.async {
                 if let started = self.pauseStartedAt {
                     let delta = CMTimeSubtract(self.lastAppendedPTS, started)
                     if CMTIME_IS_NUMERIC(delta), delta.value > 0 {
@@ -277,23 +308,29 @@ final class RecordingEngine: @unchecked Sendable {
                 }
                 self.pendingScreenSample = nil
                 self.screenDrainScheduled = false
-                cont.resume()
+                resume()
             }
         }
-        await publishPhase(.idle)
 
-        // 2) Stop capture producers.
+        // 2) Stop capture producers (bounded — SCStream.stopCapture can hang).
         await teardownCaptureOnly()
 
-        // 3) Barrier: ensure any in-flight pipeline callback has finished appending.
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            pipelineQueue.async { cont.resume() }
+        // 3) Barrier: wait briefly for in-flight appends; don't hang if the queue is stuck.
+        await Self.resumeOnce(seconds: 1.0) { resume in
+            self.pipelineQueue.async { resume() }
         }
 
-        // 4) Finalize writer safely (cancel if no session was ever started).
-        let result = try await finalizeWriter()
-        activeConfig = nil
-        return result
+        // 4) Finalize writer (bounded — finishWriting can hang with an unused audio track).
+        do {
+            let result = try await finalizeWriter()
+            activeConfig = nil
+            await publishPhase(.idle)
+            return result
+        } catch {
+            activeConfig = nil
+            await publishPhase(.idle)
+            throw error
+        }
     }
 
     // MARK: - UI state (must publish on main — @Observable + SwiftUI)
@@ -417,7 +454,9 @@ final class RecordingEngine: @unchecked Sendable {
                 return
             }
             if let timed = Self.makeSampleBuffer(from: mixed, pts: adjustedPTS) {
-                audioInput.append(timed)
+                if audioInput.append(timed) {
+                    didAppendAudio = true
+                }
             }
         } catch {
             // Drop the audio tick rather than killing the recording.
@@ -526,18 +565,22 @@ final class RecordingEngine: @unchecked Sendable {
             case alreadyFinalized
             case noSession(url: URL)
             case ready(FinishRequest)
+            case timedOut
         }
 
         let prep: Prep = await withCheckedContinuation { cont in
+            let gate = OnceGate()
             pipelineQueue.async {
+                var value: Prep = .missing
+                defer { gate.go { cont.resume(returning: value) } }
+
                 guard let writer = self.assetWriter,
                       let url = self.outputURL,
                       let config = self.activeConfig else {
-                    cont.resume(returning: .missing)
                     return
                 }
                 if self.writerFinalized {
-                    cont.resume(returning: .alreadyFinalized)
+                    value = .alreadyFinalized
                     return
                 }
 
@@ -556,7 +599,7 @@ final class RecordingEngine: @unchecked Sendable {
                         writer.cancelWriting()
                     }
                     self.clearWriterState()
-                    cont.resume(returning: .noSession(url: url))
+                    value = .noSession(url: url)
                     return
                 }
 
@@ -580,7 +623,10 @@ final class RecordingEngine: @unchecked Sendable {
                 self.pixelBufferAdaptor = nil
                 self.assetWriter = nil
                 self.outputURL = nil
-                cont.resume(returning: .ready(request))
+                value = .ready(request)
+            }
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 2.0) {
+                gate.go { cont.resume(returning: .timedOut) }
             }
         }
 
@@ -590,48 +636,96 @@ final class RecordingEngine: @unchecked Sendable {
         case .noSession(let url):
             try? FileManager.default.removeItem(at: url)
             throw RecordingEngineError.noFramesCaptured
+        case .timedOut:
+            // Pipeline queue never answered — don't wait on it. Salvage the temp
+            // mp4 if it already has bytes so the Save panel can still appear.
+            return try salvageTimedOutRecording()
         case .ready(let request):
-            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-                request.writer.finishWriting {
-                    cont.resume()
+            let finished = await Self.finishWritingBounded(request.writer, seconds: 8)
+            if !finished {
+                // Don't cancelWriting while finishWriting is still in flight — that
+                // can crash. If the file already has bytes, salvage it.
+                let size = Self.fileSize(at: request.url)
+                if size < 1024 {
+                    await clearWriterStateBounded()
+                    throw RecordingEngineError.writerFailed("Timed out finishing the video file")
                 }
-            }
-
-            if request.writer.status == .failed {
+            } else if request.writer.status == .failed {
                 let msg = request.writer.error?.localizedDescription ?? "unknown writer failure"
                 try? FileManager.default.removeItem(at: request.url)
-                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-                    self.pipelineQueue.async {
-                        self.clearWriterState()
-                        cont.resume()
-                    }
-                }
+                await clearWriterStateBounded()
                 throw RecordingEngineError.writerFailed(msg)
             }
 
-            let endAdjusted = CMTimeSubtract(request.lastRaw, request.paused)
-            let durationTime = CMTimeSubtract(endAdjusted, request.first)
-            let duration = max(0, CMTimeGetSeconds(durationTime))
-
-            let result = RecordingResult(
-                fileURL: request.url,
-                duration: duration,
+            let result = Self.makeResult(
+                url: request.url,
+                config: request.config,
+                first: request.first,
+                lastRaw: request.lastRaw,
+                paused: request.paused,
                 width: request.width,
-                height: request.height,
-                fps: request.config.fps,
-                sourceDescription: request.config.source.description,
-                hasWebcam: request.config.includeWebcam,
-                hasMic: request.config.includeMic,
-                hasSystemAudio: request.config.includeSystemAudio
+                height: request.height
             )
-
-            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-                self.pipelineQueue.async {
-                    self.clearWriterState()
-                    cont.resume()
-                }
-            }
+            await clearWriterStateBounded()
             return result
+        }
+    }
+
+    private func salvageTimedOutRecording() throws -> RecordingResult {
+        guard let url = outputURL, let config = activeConfig else {
+            throw RecordingEngineError.writerFailed("Timed out finalizing the recording")
+        }
+        let size = Self.fileSize(at: url)
+        guard size >= 1024, let first = firstScreenPTS else {
+            throw RecordingEngineError.writerFailed("Timed out finishing the video file")
+        }
+        writerFinalized = true
+        return Self.makeResult(
+            url: url,
+            config: config,
+            first: first,
+            lastRaw: lastAppendedPTS,
+            paused: pausedDuration,
+            width: outputWidth,
+            height: outputHeight
+        )
+    }
+
+    private static func makeResult(
+        url: URL,
+        config: RecordingConfig,
+        first: CMTime,
+        lastRaw: CMTime,
+        paused: CMTime,
+        width: Int,
+        height: Int
+    ) -> RecordingResult {
+        let endAdjusted = CMTimeSubtract(lastRaw, paused)
+        let durationTime = CMTimeSubtract(endAdjusted, first)
+        let duration = max(0, CMTimeGetSeconds(durationTime))
+        return RecordingResult(
+            fileURL: url,
+            duration: duration,
+            width: width,
+            height: height,
+            fps: config.fps,
+            sourceDescription: config.source.description,
+            hasWebcam: config.includeWebcam,
+            hasMic: config.includeMic,
+            hasSystemAudio: config.includeSystemAudio
+        )
+    }
+
+    private static func fileSize(at url: URL) -> Int64 {
+        (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.int64Value ?? 0
+    }
+
+    private func clearWriterStateBounded() async {
+        await Self.resumeOnce(seconds: 1.0) { resume in
+            self.pipelineQueue.async {
+                self.clearWriterState()
+                resume()
+            }
         }
     }
 
@@ -653,19 +747,57 @@ final class RecordingEngine: @unchecked Sendable {
     // MARK: - Capture teardown (keep writer alive for finalize)
 
     private func teardownCaptureOnly() async {
-        if let scStream = stream {
-            try? await scStream.stopCapture()
-        }
+        let scStream = stream
         stream = nil
         streamOutput = nil
-
-        if let session = captureSession {
-            session.stopRunning()
+        // Do not await stopCapture — it has been observed to never return, and
+        // structured timeouts still join the hung child. isStopping already drops samples.
+        if let scStream {
+            Task { try? await scStream.stopCapture() }
         }
+
+        let session = captureSession
         captureSession = nil
         videoOutput = nil
         webcamProxy = nil
         webcamLatch.clear()
+        if let session {
+            await Self.resumeOnce(seconds: 1.5) { resume in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    session.stopRunning()
+                    resume()
+                }
+            }
+        }
+    }
+
+    /// Completes when `kickoff` calls `resume`, or when `seconds` elapse.
+    /// Unlike TaskGroup, this does **not** join hung work after the timeout.
+    private static func resumeOnce(seconds: TimeInterval, kickoff: (@escaping @Sendable () -> Void) -> Void) async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            let gate = OnceGate()
+            kickoff {
+                gate.go { cont.resume() }
+            }
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + seconds) {
+                gate.go { cont.resume() }
+            }
+        }
+    }
+
+    /// `finishWriting` is async and has been observed never to call back (especially
+    /// when an audio input was added but received no samples). Bound the wait without
+    /// joining the hung callback.
+    private static func finishWritingBounded(_ writer: AVAssetWriter, seconds: TimeInterval) async -> Bool {
+        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let gate = OnceGate()
+            writer.finishWriting {
+                gate.go { cont.resume(returning: true) }
+            }
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + seconds) {
+                gate.go { cont.resume(returning: false) }
+            }
+        }
     }
 
     // MARK: - Webcam
@@ -1002,5 +1134,19 @@ private final class WebcamOutputProxy: NSObject, AVCaptureVideoDataOutputSampleB
         // Write the latch directly — no actor hop, no clock interaction (TRD §1.2).
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         latch.store(imageBuffer)
+    }
+}
+
+/// Resume-once latch so a timeout and a late callback cannot double-resume a continuation.
+private final class OnceGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+
+    func go(_ body: () -> Void) {
+        lock.lock()
+        let shouldRun = !done
+        if shouldRun { done = true }
+        lock.unlock()
+        if shouldRun { body() }
     }
 }

@@ -64,6 +64,7 @@ final class RecordingSessionController {
 
         do {
             let result = try await engine.stop()
+            isBusy = false
             let panel = PostRecordingPanelController(store: store)
             postPanelController = panel
             panel.present(result: result) { [weak self] in

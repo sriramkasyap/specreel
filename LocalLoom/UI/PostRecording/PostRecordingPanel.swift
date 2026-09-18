@@ -8,7 +8,7 @@ import AVFoundation
 struct PostRecordingPanel: View {
     let result: RecordingResult
     let thumbnail: NSImage?
-    var onSave: (_ title: String, _ description: String) -> Void
+    var onSave: (_ title: String, _ description: String, _ openAfter: Bool) -> Void
     var onDiscard: () -> Void
 
     @State private var title: String
@@ -18,7 +18,7 @@ struct PostRecordingPanel: View {
     init(
         result: RecordingResult,
         thumbnail: NSImage?,
-        onSave: @escaping (_ title: String, _ description: String) -> Void,
+        onSave: @escaping (_ title: String, _ description: String, _ openAfter: Bool) -> Void,
         onDiscard: @escaping () -> Void
     ) {
         self.result = result
@@ -67,26 +67,17 @@ struct PostRecordingPanel: View {
                     .padding(10)
             }
 
-            HStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Duration").foregroundStyle(.secondary)
-                    Text(LoomTheme.duration(result.duration)).textSelection(.enabled)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Size").foregroundStyle(.secondary)
-                    Text("\(result.width)×\(result.height)").textSelection(.enabled)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("FPS").foregroundStyle(.secondary)
-                    Text("\(result.fps)").textSelection(.enabled)
-                }
-            }
-            .font(.caption)
-
-            Text(result.sourceDescription)
+            Text("\(result.width) × \(result.height) · \(result.fps) fps")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
+
+            HStack(spacing: 6) {
+                if result.hasWebcam { Text("Camera") }
+                if result.hasMic { Text("Microphone") }
+                if result.hasSystemAudio { Text("System audio") }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
 
             TextField("Title", text: $title)
                 .textFieldStyle(.roundedBorder)
@@ -110,15 +101,20 @@ struct PostRecordingPanel: View {
                 }
 
             HStack {
-                Button("Discard") {
+                Button("Discard", role: .destructive) {
                     onDiscard()
                 }
                 .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
+                Button("Save & Open") {
+                    commit(openAfter: true)
+                }
+                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
                 Button("Save") {
-                    onSave(title.trimmingCharacters(in: .whitespacesAndNewlines), descriptionText)
+                    commit(openAfter: false)
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
@@ -129,6 +125,12 @@ struct PostRecordingPanel: View {
         .frame(width: 420)
         .onAppear { titleFocused = true }
         .onExitCommand { onDiscard() }
+    }
+
+    private func commit(openAfter: Bool) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onSave(trimmed, descriptionText, openAfter)
     }
 
     @ViewBuilder
@@ -173,8 +175,8 @@ final class PostRecordingPanelController: NSObject {
         let root = PostRecordingPanel(
             result: result,
             thumbnail: thumbnail,
-            onSave: { [weak self] title, description in
-                self?.save(title: title, description: description)
+            onSave: { [weak self] title, description, openAfter in
+                self?.save(title: title, description: description, openAfter: openAfter)
             },
             onDiscard: { [weak self] in
                 self?.discard()
@@ -204,11 +206,11 @@ final class PostRecordingPanelController: NSObject {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func save(title: String, description: String) {
+    private func save(title: String, description: String, openAfter: Bool) {
         guard let result else { return }
         Task { @MainActor in
             do {
-                try await store.save(RecordingSaveRequest(
+                let entry = try await store.save(RecordingSaveRequest(
                 tempVideoURL: result.fileURL,
                 meta: RecordingMeta(
                     id: RecordingStore.makeRecordingID(),
@@ -226,6 +228,10 @@ final class PostRecordingPanelController: NSObject {
                     hasSystemAudio: result.hasSystemAudio
                 )
             ))
+            if openAfter {
+                try? store.revealInFinder(id: entry.id)
+                NSWorkspace.shared.open(entry.videoURL)
+            }
             closeAndDismiss()
             } catch {
                 let alert = NSAlert(error: error)
@@ -265,19 +271,28 @@ final class PostRecordingPanelController: NSObject {
     }
 
     private func generateFallbackThumbnail(from fileURL: URL) -> NSImage? {
-        let asset = AVURLAsset(url: fileURL)
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 640, height: 360)
-        // Prefer ~10% into the clip (M5 acceptance).
-        let duration = asset.duration.seconds
-        let target = max(0.1, duration * 0.1)
-        let time = CMTime(seconds: target, preferredTimescale: 600)
-        guard let cg = try? generator.copyCGImage(at: time, actualTime: nil) else {
-            return nil
+        let box = ThumbnailBox()
+        let sem = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            defer { sem.signal() }
+            let asset = AVURLAsset(url: fileURL)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 640, height: 360)
+            let duration = asset.duration.seconds
+            let target = max(0.1, duration * 0.1)
+            let time = CMTime(seconds: target, preferredTimescale: 600)
+            guard let cg = try? generator.copyCGImage(at: time, actualTime: nil) else { return }
+            box.image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
         }
-        return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+        // copyCGImage can hang on a file that never finished writing.
+        _ = sem.wait(timeout: .now() + 1.5)
+        return box.image
     }
+}
+
+private final class ThumbnailBox: @unchecked Sendable {
+    var image: NSImage?
 }
 
 extension PostRecordingPanelController: NSWindowDelegate {
