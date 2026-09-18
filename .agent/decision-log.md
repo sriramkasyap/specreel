@@ -1,5 +1,14 @@
 # Local Loom — Decision Log
 
+## 2026-09-18 10:27 — Root-caused the "Timed out finishing the video file" hang
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| Medium | Built and ran ~10 standalone `xcrun swift` repro scripts outside the app/test targets to bisect the cause, rather than adding more instrumentation to the running app and waiting on the user to reproduce each time | scratchpad (not committed) | Each round-trip through the user costs minutes; a scriptable repro let me bisect (video-only vs audio-only, AAC vs PCM, interleaved vs not, burst vs real-time pacing, single append vs hundreds) in the same turn. Not asked for explicitly, but matches "add real diagnostics instead of guessing" already established this session. | unlinked |
+| Medium | Fixed by adding `CMSampleBufferSetDataReady(sampleBuffer)` after `CMSampleBufferSetDataBuffer`, rather than restructuring the sample-buffer construction to use a different API (e.g. `CMSampleBufferCreateReady`, or building via `AVAudioConverter`) | `RecordingEngine.makeSampleBuffer` | Verified via repro that this one-line addition alone fixes every failing variant (AAC/PCM, interleaved/non-interleaved, burst/real-time); it's the minimal diff that addresses the actual defect (the buffer was created `dataReady: false` with no callback, so nothing ever flips it) rather than a larger rewrite. | unlinked |
+| Medium | Reverted `finishWritingBounded`'s bound from 25s back to 8s and rewrote the comments that blamed an empty audio track / "finishWriting never returns" | `RecordingEngine.swift` | Those comments and the 25s widening were both diagnostic steps taken while the cause was still unknown; now that the actual defect is fixed and verified, the original 8s margin is generous (finishWriting completes in <100ms) and the stale comments would mislead the next reader. | unlinked |
+| Low | Kept the `os.log` instrumentation (finalize entry, frame/sample counts, stopCapture timing) added while diagnosing this, rather than removing it now that the bug is fixed | `RecordingEngine.swift` | Cheap, low-noise, and useful if a different writer issue ever surfaces; removing verified-useful diagnostics right after using them to find a real bug seemed like the wrong trade. | unlinked |
+
 ## 2026-09-18 06:45 — Fixed 13 code-review findings
 
 | Confidence | Decision | Where | Reasoning | Spec link |
