@@ -81,6 +81,23 @@ security find-identity -v -p codesigning   # copy your certificate's SHA-1
 
 `Config/Local.xcconfig` is gitignored, so your identity never ends up in a commit.
 
+### Building for yourself, on more than one Mac
+
+The [downloadable release](#-releasing) is signed **ad-hoc**, which is fine for a quick try but macOS treats it more strictly than you'd expect: an ad-hoc-signed app downloaded from a browser can get Gatekeeper's hard **"…is damaged and can't be opened, move to Trash"** block, not just a soft warning — right-click → Open doesn't get past that one.
+
+If you just want Specreel on Macs you own — no public distribution, no notarization — sign with your own certificate instead:
+
+1. Set up `Config/Local.xcconfig` as in [Code signing](#code-signing) above.
+2. Build and sign locally:
+   ```bash
+   ./scripts/dev.sh release
+   cp -R build/Release/Specreel.app /Applications/
+   ```
+   Built and signed this way, the app has no quarantine flag, so it launches with no prompt at all on this Mac.
+3. **Get it onto your other Mac:**
+   - **Copy the signed app itself** (AirDrop, USB, `scp`) — no Xcode needed on the second Mac. AirDrop still sets a quarantine flag, but because the signature is a real Apple-issued certificate (not ad-hoc), you'll see at most the soft "unidentified developer" prompt — right-click `Specreel.app` → **Open** → **Open** again, once.
+   - **Or build it there too**, if that Mac is signed into the same Apple ID in Xcode (Xcode → Settings → Accounts) so the certificate is available: clone the repo and repeat steps 1–2.
+
 ### Permissions
 
 macOS asks for these the first time each is needed:
@@ -111,6 +128,15 @@ tccutil reset Camera dev.yagna.specreel
 6. **Browse.** Open **Recordings** from the popover (or the Dock icon) for the library: gallery on the left, preview in the middle, and an inspector for editing metadata, revealing in Finder, copying the path, or trashing.
 
 Your capture settings are remembered between launches.
+
+### Start automatically at login
+
+Specreel has no login-item setting of its own — use macOS's, either:
+
+- Right-click Specreel's Dock icon while it's running → **Options** → **Open at Login**, or
+- **System Settings → General → Login Items & Extensions** → **+** under *Open at Login* → pick `Specreel.app`.
+
+It'll come up quietly in the menu bar rather than opening a window.
 
 ### Where recordings go
 
