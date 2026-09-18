@@ -227,15 +227,24 @@ private struct GalleryThumbnailCell: View {
 
     @ViewBuilder
     private var thumbnail: some View {
-        if let image = NSImage(contentsOf: entry.thumbnailURL) {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } else {
-            ZStack {
-                SpecreelTheme.canvas
-                Image(systemName: "film")
-                    .foregroundStyle(.white.opacity(0.45))
+        // GeometryReader hands the image a concrete, bounded size before it fills —
+        // without it, `.aspectRatio(contentMode: .fill)` reports its own oversized
+        // ideal size upward through `.frame(maxWidth: .infinity)` uncapped, which is
+        // what let an ultra-wide recording (e.g. 3440×1440) blow the card past the
+        // grid column and off the left edge of the window.
+        GeometryReader { geo in
+            if let image = NSImage(contentsOf: entry.thumbnailURL) {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+            } else {
+                ZStack {
+                    SpecreelTheme.canvas
+                    Image(systemName: "film")
+                        .foregroundStyle(.white.opacity(0.45))
+                }
             }
         }
     }

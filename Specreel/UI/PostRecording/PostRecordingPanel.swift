@@ -175,16 +175,24 @@ struct PostRecordingPanel: View {
 
     @ViewBuilder
     private var thumbnailView: some View {
-        if let thumbnail {
-            Image(nsImage: thumbnail)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } else {
-            ZStack {
-                Color.secondary.opacity(0.15)
-                Image(systemName: "film")
-                    .font(.largeTitle)
-                    .foregroundStyle(.secondary)
+        // GeometryReader hands the image a concrete, bounded size before it fills —
+        // without it, `.aspectRatio(contentMode: .fill)` reports its own oversized
+        // ideal size upward through `.frame(maxWidth: .infinity)` uncapped, which is
+        // what let ultra-wide recordings (e.g. 3440×1440) blow the panel out sideways.
+        GeometryReader { geo in
+            if let thumbnail {
+                Image(nsImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+            } else {
+                ZStack {
+                    Color.secondary.opacity(0.15)
+                    Image(systemName: "film")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
