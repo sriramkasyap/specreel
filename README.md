@@ -1,24 +1,37 @@
+<div align="center">
+
+<img src="Specreel/Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png" width="128" height="128" alt="Specreel icon">
+
 # Specreel
 
-A native macOS screen recorder that keeps everything on your machine.
+**A native, local-first screen recorder for macOS.**
+
+[![Platform](https://img.shields.io/badge/platform-macOS%2015%2B-0F7355?style=flat-square)](#requirements)
+[![Swift](https://img.shields.io/badge/Swift-5-E3292E?style=flat-square&logo=swift&logoColor=white)](#requirements)
+[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-0F7355?style=flat-square)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-68%20passing-E3292E?style=flat-square)](#contributing)
+
+</div>
 
 Specreel records a display, a single window, or a region you drag out, with an optional round webcam bubble burned into the video and your microphone plus system audio mixed onto one track. Every recording lands in its own folder on disk as a plain MP4, a thumbnail, and a small JSON sidecar. No server, no upload, no account.
 
 Think of it as a local-first Loom alternative for people who just want the file.
 
-## Features
+## ✨ Features
 
-- **Three capture modes:** full display, a single window (follows it if it moves), or a dragged region.
-- **Webcam picture-in-picture:** circular or rounded-rectangle bubble, pick the corner and size, composited into the video in real time via Core Image / Metal.
-- **Mic + system audio on one track:** both come from ScreenCaptureKit on the same clock, so there's no drift correction, and each has its own gain (system audio defaults to −6 dB so your voice isn't buried).
-- **Pause / resume** without gaps or frozen frames in the output.
-- **3-second countdown** (cancellable) and a floating control pill with the elapsed time.
-- **Menu bar first:** start from the menu bar popover; while recording, clicking the menu bar icon stops immediately.
-- **Library window:** a gallery of past recordings with an inspector to edit title and description, reveal in Finder, copy the path, or move to Trash.
-- **Resolution cap:** 1440p (default) or native pixels, 30 fps by default.
-- **Portable storage:** each recording is a self-contained folder, so backing up is just copying folders (`rsync`, `rclone`, Time Machine, anything).
+| | |
+|---|---|
+| 🖥️ **Three capture modes** | Full display, a single window (follows it if it moves), or a dragged region. |
+| 🟢 **Webcam picture-in-picture** | Circular or rounded-rectangle bubble, pick the corner and size, composited in real time via Core Image / Metal. |
+| 🎙️ **Mic + system audio, one track** | Both come from ScreenCaptureKit on the same clock — no drift correction — each with its own gain (system audio defaults to −6 dB so your voice isn't buried). |
+| ⏸️ **Pause / resume** | No gaps or frozen frames in the output. |
+| ⏱️ **3-second countdown** | Cancellable, plus a floating control pill showing elapsed time. |
+| 🎛️ **Menu bar first** | Start from the popover; while recording, clicking the menu bar icon stops immediately. |
+| 🗂️ **Library window** | A gallery of past recordings — inspect, edit title/description, double-click to open, or share straight to AirDrop/Mail/Messages via the system share sheet. |
+| 📐 **Resolution cap** | 1440p (default) or native pixels, 30 fps by default. |
+| 📁 **Portable storage** | Each recording is a self-contained folder — back up with `rsync`, `rclone`, Time Machine, anything. |
 
-## Requirements
+## 📋 Requirements
 
 | | Minimum |
 |---|---|
@@ -28,7 +41,7 @@ Think of it as a local-first Loom alternative for people who just want the file.
 
 There are no prebuilt releases yet, so you build from source.
 
-## Installation
+## 📦 Installation
 
 ```bash
 git clone <this-repo-url> specreel
@@ -82,7 +95,7 @@ tccutil reset Microphone dev.yagna.specreel
 tccutil reset Camera dev.yagna.specreel
 ```
 
-## Usage
+## 🚀 Usage
 
 1. **Open the popover.** Click the record-circle icon in the menu bar.
 2. **Choose what to capture.** Display, Window, or Region (for Region, click **Select Region…** and drag). Toggle the webcam, mic, and system audio, and pick devices if you have more than one.
@@ -105,7 +118,7 @@ Your capture settings are remembered between launches.
 
 The folder name is `<yyyy-MM-dd-HHmmss>-<id>`, so folders sort chronologically. Specreel never renames them; editing the title only rewrites `meta.json`. You can move, back up, or delete folders freely, and the library rescans on launch.
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 - **Black or empty video:** Screen Recording permission is missing or was invalidated by a rebuild (see [Code signing](#code-signing)). Re-grant it and relaunch.
 - **Recording stops by itself:** ScreenCaptureKit ends the stream if the display sleeps, the monitor is unplugged, or the captured window closes. Specreel finalizes and keeps whatever was captured up to that point.
@@ -114,7 +127,7 @@ The folder name is `<yyyy-MM-dd-HHmmss>-<id>`, so folders sort chronologically. 
   log stream --predicate 'subsystem == "dev.yagna.specreel"' --level info
   ```
 
-## How it works
+## ⚙️ How it works
 
 ```
 SCStream ──┬── .screen      frames ───────────────┐
@@ -133,7 +146,7 @@ AVCaptureSession ── webcam ──► [latch]  [AudioMixer]  [Compositor (CIC
 - ScreenCaptureKit sends **idle frames** (no new pixels) with `.idle` status; only `.complete` frames are written.
 - `RecordingEngine` owns all pipeline state on a single serial queue; the UI observes it through Swift Observation.
 
-## Project layout
+## 🗺️ Project layout
 
 ```
 Specreel/
@@ -151,7 +164,7 @@ scripts/dev.sh            build | run | release | test | open
 
 The one third-party dependency is [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) (MIT), pulled in by Swift Package Manager.
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome: bug reports, fixes, and features.
 
@@ -173,6 +186,6 @@ The project uses Swift strict concurrency (`SWIFT_STRICT_CONCURRENCY = complete`
 - A global start/stop hotkey is stubbed in `Capture/HotKeyManager.swift` but not wired into the app or given a settings UI.
 - No prebuilt, notarized release yet.
 
-## License
+## 📄 License
 
 [GNU General Public License v3.0](LICENSE). You may use, modify, and redistribute Specreel, but distributed modified versions must also be released under GPL-3.0 with source.
