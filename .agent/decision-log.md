@@ -1,5 +1,16 @@
 # Local Loom — Decision Log
 
+## 2026-09-18 06:45 — Fixed 13 code-review findings
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| Medium | Removed `salvageTimedOutRecording` entirely and fail closed on prep-timeout, rather than trying to make the salvage read safe | `RecordingEngine.finalizeWriter` | Reversal of the 09-17 22:45 decision to salvage on timeout: that path read `outputURL`/`activeConfig`/CMTime fields off `pipelineQueue` unsynchronized, and never called `finishWriting`, so the "salvaged" file had no moov atom. Given the queue is provably stuck when this path is hit, there's no safe way to read that state; the review flagged this as a real data race + broken-file bug, so I chose correctness over the salvage feature. | unlinked |
+| Medium | Added a per-session generation counter compared in every sample/delegate callback | `RecordingEngine` + `StreamOutputProxy` | The review's suggested fix ("give each pipeline session a generation/token") was one option among several possible mitigations for the zombie-SCStream leak (e.g. forcing `stopCapture` to actually block, or reference-counting streams); I picked the generation-tag approach as the smallest diff that doesn't change the existing fire-and-forget teardown behavior. | unlinked |
+| Medium | Verify the output file via `AVURLAsset.isReadable` + numeric non-zero duration instead of a byte-size threshold | `RecordingEngine.isFinishedAsset` | Byte count doesn't tell you whether `finishWriting` actually wrote the moov atom; this is a cheap, real check, but it's still a heuristic (a corrupt-but-readable file could pass) rather than parsing the atom structure directly. | unlinked |
+| Medium | Deleted the unused `didAppendAudio` flag rather than wiring up the "skip/cancel an empty audio track" mitigation the review offered as an alternative | `RecordingEngine` | Implementing that mitigation would require restructuring how/when the audio input is added (AVAssetWriterInput can't be removed once added), which is a bigger change than this pass's scope; the review explicitly offered "or delete it" as an acceptable option, and the AVURLAsset validation added above already defends against the harmful *consequence* of a hang. | partially linked |
+| Medium | Guarded `RecordingSessionController.stop` with `!isBusy` instead of also strengthening `RecordingEngine.phase` to flip earlier | `RecordingSessionController.stop` | `isBusy` already spans the full ~12s teardown window that caused the double-panel bug; changing when `phase` publishes `.idle` would touch more call sites (pill, inspector) for the same net effect. | unlinked |
+| Low | Left `RegionSelector.swift`'s mouseUp-no-longer-confirms behavior unchanged | `RegionSelector.swift` | The overlay window already calls `makeKeyAndOrderFront` + `NSApp.activate` on present, and `canBecomeKey` is true, so Enter reaching the Confirm button appears to already work; treated the review's "worth confirming" note as verified rather than a code change. | unlinked |
+
 ## 2026-09-17 22:45 — Stop never reached Save
 
 | Confidence | Decision | Where | Reasoning | Spec link |
