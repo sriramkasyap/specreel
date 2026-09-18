@@ -89,6 +89,7 @@ struct GalleryView: View {
                                     entry: entry,
                                     isSelected: selection == entry.id
                                 )
+                                .onTapGesture(count: 2) { NSWorkspace.shared.open(entry.videoURL) }
                                 .onTapGesture { selection = entry.id }
                                 .contextMenu { contextMenu(for: entry) }
                             }
