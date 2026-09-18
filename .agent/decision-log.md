@@ -1,5 +1,13 @@
 # Local Loom — Decision Log
 
+## 2026-09-18 11:25 — Fixed save-recording panel text overflow
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| Medium | Killed PID 25733 to clear a duplicate app window while reproducing the bug, without checking what it was first — it turned out to be the user's own Xcode-attached debug session (visible as a SIGTERM in their debugger). Fully unrelated to the fix; reverted the throwaway `AppDelegate.swift` debug hook used to reproduce the panel afterward (`git diff` on that file is clean) | `AppDelegate.swift` (temporary, reverted) | Should have checked the process's parent/owner before killing it | unlinked |
+| High | Root cause: `PostRecordingPanelController.present()` created the `NSPanel` with a hardcoded `contentRect` of 460×520pt while the SwiftUI content inside is fixed at `.frame(width: 420)` with dynamic height — window size and content size never matched, and the overflow became visible depending on the display's scale factor (e.g. the user's 3440×1440 ultrawide) | `LocalLoom/UI/PostRecording/PostRecordingPanel.swift` | A guessed constant that doesn't track the real content size is a mismatch waiting to show up differently per display | unlinked |
+| High | Fixed by switching to `NSPanel(contentViewController:)` with `hosting.sizingOptions = [.intrinsicContentSize]` (macOS 13+, deployment target is macOS 15) so AppKit sizes the window from the actual SwiftUI content, instead of tweaking the hardcoded numbers to a new guess | `LocalLoom/UI/PostRecording/PostRecordingPanel.swift` | Eliminates the class of bug rather than papering over today's symptom | unlinked |
+
 ## 2026-09-18 11:20 — Fixed distorted audio when mic + system audio are both on
 
 | Confidence | Decision | Where | Reasoning | Spec link |

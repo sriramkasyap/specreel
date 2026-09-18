@@ -220,12 +220,13 @@ final class PostRecordingPanelController: NSObject {
         )
 
         let hosting = NSHostingController(rootView: root)
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 520),
-            styleMask: [.titled, .closable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
+        // Let AppKit track the SwiftUI content's real size instead of guessing
+        // a fixed contentRect — a mismatch there (previously 460×520 vs the
+        // view's actual ~420-wide intrinsic size) is what let content overflow
+        // the window bounds, most visibly on non-standard display scales.
+        hosting.sizingOptions = [.intrinsicContentSize]
+        let panel = NSPanel(contentViewController: hosting)
+        panel.styleMask = [.titled, .closable, .fullSizeContentView]
         panel.title = "Save Recording"
         panel.isFloatingPanel = true
         panel.level = .floating
