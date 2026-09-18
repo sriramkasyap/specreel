@@ -26,7 +26,7 @@ struct RecordingInspector: View {
                     TextField("Title", text: $title)
                         .textFieldStyle(.roundedBorder)
                         .focused($titleFocused)
-                        .onSubmit { persistMeta() }
+                        .onSubmit { persistMeta(id: entry.id) }
 
                     ZStack(alignment: .topLeading) {
                         TextEditor(text: $descriptionText)
@@ -62,20 +62,24 @@ struct RecordingInspector: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(nsColor: .controlBackgroundColor))
         .onAppear { load(entry) }
-        .onChange(of: entry.id) { _, _ in
+        .onChange(of: entry.id) { oldID, _ in
+            // Persist under the *old* id before loading the new entry's text —
+            // `entry` itself already points at the new selection here, so using
+            // entry.id would write the previous recording's unsaved edits onto
+            // whatever is newly selected.
             player?.pause()
-            persistMeta()
+            persistMeta(id: oldID)
             load(entry)
         }
         .onChange(of: titleFocused) { _, focused in
-            if !focused { persistMeta() }
+            if !focused { persistMeta(id: entry.id) }
         }
         .onChange(of: descriptionFocused) { _, focused in
-            if !focused { persistMeta() }
+            if !focused { persistMeta(id: entry.id) }
         }
         .onDisappear {
             player?.pause()
-            persistMeta()
+            persistMeta(id: entry.id)
         }
         .confirmationDialog(
             "Move this recording to Trash?",
@@ -155,9 +159,9 @@ struct RecordingInspector: View {
         player = AVPlayer(url: entry.videoURL)
     }
 
-    private func persistMeta() {
+    private func persistMeta(id: RecordingEntry.ID) {
         _ = try? store.updateMeta(
-            id: entry.id,
+            id: id,
             title: title,
             description: descriptionText
         )

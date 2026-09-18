@@ -7,22 +7,20 @@ import AVFoundation
 /// Floating post-recording panel content (hosted in its own NSWindow).
 struct PostRecordingPanel: View {
     let result: RecordingResult
-    let thumbnail: NSImage?
     var onSave: (_ title: String, _ description: String, _ openAfter: Bool) -> Void
     var onDiscard: () -> Void
 
     @State private var title: String
     @State private var descriptionText: String = ""
+    @State private var thumbnail: NSImage?
     @FocusState private var titleFocused: Bool
 
     init(
         result: RecordingResult,
-        thumbnail: NSImage?,
         onSave: @escaping (_ title: String, _ description: String, _ openAfter: Bool) -> Void,
         onDiscard: @escaping () -> Void
     ) {
         self.result = result
-        self.thumbnail = thumbnail
         self.onSave = onSave
         self.onDiscard = onDiscard
         _title = State(initialValue: Self.inferredTitle(from: result))
@@ -125,6 +123,48 @@ struct PostRecordingPanel: View {
         .frame(width: 420)
         .onAppear { titleFocused = true }
         .onExitCommand { onDiscard() }
+        .task { await loadThumbnail() }
+    }
+
+    /// Loads the sibling thumbnail if the engine wrote one, else generates one
+    /// from the video off the main thread. Runs entirely inside this `Task`, so
+    /// there's no shared mutable box and no risk of blocking the UI.
+    private func loadThumbnail() async {
+        if let sibling = Self.loadSiblingThumbnail(fileURL: result.fileURL) {
+            thumbnail = sibling
+            return
+        }
+        thumbnail = await Self.generateFallbackThumbnail(from: result.fileURL)
+    }
+
+    private static func loadSiblingThumbnail(fileURL: URL) -> NSImage? {
+        let sibling = fileURL.deletingLastPathComponent().appendingPathComponent("thumbnail.jpg")
+        return NSImage(contentsOf: sibling)
+    }
+
+    /// `copyCGImage` can hang on a file that never finished writing — race it
+    /// against a timeout task instead of blocking a thread with a semaphore.
+    private static func generateFallbackThumbnail(from fileURL: URL) async -> NSImage? {
+        await withTaskGroup(of: NSImage?.self) { group in
+            group.addTask {
+                let asset = AVURLAsset(url: fileURL)
+                let generator = AVAssetImageGenerator(asset: asset)
+                generator.appliesPreferredTrackTransform = true
+                generator.maximumSize = CGSize(width: 640, height: 360)
+                let duration = asset.duration.seconds
+                let target = max(0.1, duration * 0.1)
+                let time = CMTime(seconds: target, preferredTimescale: 600)
+                guard let cg = try? generator.copyCGImage(at: time, actualTime: nil) else { return nil }
+                return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                return nil
+            }
+            let result = await group.next() ?? nil
+            group.cancelAll()
+            return result
+        }
     }
 
     private func commit(openAfter: Bool) {
@@ -169,12 +209,8 @@ final class PostRecordingPanelController: NSObject {
         self.result = result
         self.onDismiss = onDismiss
 
-        let thumbnail = loadThumbnail(from: result.fileURL)
-            ?? generateFallbackThumbnail(from: result.fileURL)
-
         let root = PostRecordingPanel(
             result: result,
-            thumbnail: thumbnail,
             onSave: { [weak self] title, description, openAfter in
                 self?.save(title: title, description: description, openAfter: openAfter)
             },
@@ -229,7 +265,6 @@ final class PostRecordingPanelController: NSObject {
                 )
             ))
             if openAfter {
-                try? store.revealInFinder(id: entry.id)
                 NSWorkspace.shared.open(entry.videoURL)
             }
             closeAndDismiss()
@@ -263,36 +298,6 @@ final class PostRecordingPanelController: NSObject {
         done?()
     }
 
-    private func loadThumbnail(from fileURL: URL) -> NSImage? {
-        let sibling = fileURL.deletingLastPathComponent()
-            .appendingPathComponent("thumbnail.jpg")
-        if let img = NSImage(contentsOf: sibling) { return img }
-        return nil
-    }
-
-    private func generateFallbackThumbnail(from fileURL: URL) -> NSImage? {
-        let box = ThumbnailBox()
-        let sem = DispatchSemaphore(value: 0)
-        DispatchQueue.global(qos: .userInitiated).async {
-            defer { sem.signal() }
-            let asset = AVURLAsset(url: fileURL)
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 640, height: 360)
-            let duration = asset.duration.seconds
-            let target = max(0.1, duration * 0.1)
-            let time = CMTime(seconds: target, preferredTimescale: 600)
-            guard let cg = try? generator.copyCGImage(at: time, actualTime: nil) else { return }
-            box.image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
-        }
-        // copyCGImage can hang on a file that never finished writing.
-        _ = sem.wait(timeout: .now() + 1.5)
-        return box.image
-    }
-}
-
-private final class ThumbnailBox: @unchecked Sendable {
-    var image: NSImage?
 }
 
 extension PostRecordingPanelController: NSWindowDelegate {

@@ -76,7 +76,7 @@ struct CapturePreviewCanvas: View {
             config.source.kind.rawValue,
             String(config.source.displayID ?? 0),
             String(config.source.windowID ?? 0),
-            config.source.regionInNSScreenPoints.map { "\($0.origin.x),\($0.size.width)" } ?? "",
+            config.source.regionInNSScreenPoints.map { "\($0.origin.x),\($0.origin.y),\($0.size.width),\($0.size.height)" } ?? "",
             config.includeWebcam ? "cam" : "nocam"
         ].joined(separator: "|")
     }

@@ -145,10 +145,25 @@ final class RecordingEngine: @unchecked Sendable {
     private var screenDrainScheduled = false
 
     /// Prevents double `finishWriting` (user Stop + stream-death) and blocks
-    /// appends once teardown begins.
-    private var isStopping = false
+    /// appends once teardown begins. Backed by `stateLock` — `stop()` sets this
+    /// off `pipelineQueue` (a hung compositor must not block teardown from
+    /// starting), so it needs real synchronization with the queue's readers.
+    private var _isStopping = false
+    private var isStopping: Bool {
+        get { stateLock.withLock { _isStopping } }
+        set { stateLock.withLock { _isStopping = newValue } }
+    }
     private var writerFinalized = false
-    private var didAppendAudio = false
+
+    /// Bumped on every `start()`. Sample/delegate callbacks carry the generation
+    /// they were registered under so a zombie `SCStream` still draining from a
+    /// prior session (its `stopCapture()` is fire-and-forget and can hang) can't
+    /// feed stale frames into a newer recording.
+    private var _currentGeneration: UInt64 = 0
+    private var currentGeneration: UInt64 {
+        get { stateLock.withLock { _currentGeneration } }
+        set { stateLock.withLock { _currentGeneration = newValue } }
+    }
 
     /// Single-flight stop so the pill and the window can't both finalize.
     private let stopLock = NSLock()
@@ -187,7 +202,8 @@ final class RecordingEngine: @unchecked Sendable {
         screenDrainScheduled = false
         isStopping = false
         writerFinalized = false
-        didAppendAudio = false
+        let generation = currentGeneration + 1
+        currentGeneration = generation
         await publishElapsed(0)
 
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -209,7 +225,7 @@ final class RecordingEngine: @unchecked Sendable {
         )
 
         let streamConfig = Self.makeStreamConfiguration(config: snapshot, width: width, height: height, content: content)
-        let proxy = StreamOutputProxy(engine: self)
+        let proxy = StreamOutputProxy(engine: self, generation: generation)
         streamOutput = proxy
 
         let scStream = SCStream(filter: filter, configuration: streamConfig, delegate: proxy)
@@ -346,8 +362,8 @@ final class RecordingEngine: @unchecked Sendable {
     // MARK: - Sample handling (pipelineQueue only)
 
     /// Coalesce screen frames: keep only the latest while draining.
-    fileprivate func enqueueScreenSample(_ sampleBuffer: CMSampleBuffer) {
-        guard !isStopping else { return }
+    fileprivate func enqueueScreenSample(_ sampleBuffer: CMSampleBuffer, generation: UInt64) {
+        guard generation == currentGeneration, !isStopping else { return }
         pendingScreenSample = sampleBuffer
         guard !screenDrainScheduled else { return }
         screenDrainScheduled = true
@@ -424,16 +440,16 @@ final class RecordingEngine: @unchecked Sendable {
         }
     }
 
-    fileprivate func processSystemAudioSample(_ sampleBuffer: CMSampleBuffer) {
-        processAudioSample(sampleBuffer, isMic: false)
+    fileprivate func processSystemAudioSample(_ sampleBuffer: CMSampleBuffer, generation: UInt64) {
+        processAudioSample(sampleBuffer, isMic: false, generation: generation)
     }
 
-    fileprivate func processMicrophoneSample(_ sampleBuffer: CMSampleBuffer) {
-        processAudioSample(sampleBuffer, isMic: true)
+    fileprivate func processMicrophoneSample(_ sampleBuffer: CMSampleBuffer, generation: UInt64) {
+        processAudioSample(sampleBuffer, isMic: true, generation: generation)
     }
 
-    private func processAudioSample(_ sampleBuffer: CMSampleBuffer, isMic: Bool) {
-        guard !isStopping else { return }
+    private func processAudioSample(_ sampleBuffer: CMSampleBuffer, isMic: Bool, generation: UInt64) {
+        guard generation == currentGeneration, !isStopping else { return }
         guard phase == .recording else { return }
         guard sessionStarted else {
             if isMic { pendingMicAudio = sampleBuffer } else { pendingSystemAudio = sampleBuffer }
@@ -454,9 +470,7 @@ final class RecordingEngine: @unchecked Sendable {
                 return
             }
             if let timed = Self.makeSampleBuffer(from: mixed, pts: adjustedPTS) {
-                if audioInput.append(timed) {
-                    didAppendAudio = true
-                }
+                audioInput.append(timed)
             }
         } catch {
             // Drop the audio tick rather than killing the recording.
@@ -464,9 +478,10 @@ final class RecordingEngine: @unchecked Sendable {
     }
 
     /// Trap 6: stream died — reuse stop() so finalize rules stay in one place.
-    fileprivate func handleStreamStopped(error: Error?) {
+    fileprivate func handleStreamStopped(error: Error?, generation: UInt64) {
         Task { [weak self] in
             guard let self else { return }
+            guard generation == self.currentGeneration else { return }
             guard self.phase == .recording || self.phase == .paused else { return }
             do {
                 _ = try await self.stop()
@@ -637,16 +652,19 @@ final class RecordingEngine: @unchecked Sendable {
             try? FileManager.default.removeItem(at: url)
             throw RecordingEngineError.noFramesCaptured
         case .timedOut:
-            // Pipeline queue never answered — don't wait on it. Salvage the temp
-            // mp4 if it already has bytes so the Save panel can still appear.
-            return try salvageTimedOutRecording()
+            // pipelineQueue never answered inside the prep window, so the writer/
+            // timing fields (confined to that queue) can't be safely read here and
+            // finishWriting was never even invoked. Fail closed instead of guessing
+            // from raced state — the queued prep block still runs to completion on
+            // its own once the queue frees up and quietly finalizes/cancels there.
+            throw RecordingEngineError.writerFailed("Timed out finalizing the recording")
         case .ready(let request):
             let finished = await Self.finishWritingBounded(request.writer, seconds: 8)
             if !finished {
                 // Don't cancelWriting while finishWriting is still in flight — that
-                // can crash. If the file already has bytes, salvage it.
-                let size = Self.fileSize(at: request.url)
-                if size < 1024 {
+                // can crash. The file may still be missing its moov atom even if it
+                // has bytes, so verify it's actually readable before trusting it.
+                guard Self.isFinishedAsset(at: request.url) else {
                     await clearWriterStateBounded()
                     throw RecordingEngineError.writerFailed("Timed out finishing the video file")
                 }
@@ -669,26 +687,6 @@ final class RecordingEngine: @unchecked Sendable {
             await clearWriterStateBounded()
             return result
         }
-    }
-
-    private func salvageTimedOutRecording() throws -> RecordingResult {
-        guard let url = outputURL, let config = activeConfig else {
-            throw RecordingEngineError.writerFailed("Timed out finalizing the recording")
-        }
-        let size = Self.fileSize(at: url)
-        guard size >= 1024, let first = firstScreenPTS else {
-            throw RecordingEngineError.writerFailed("Timed out finishing the video file")
-        }
-        writerFinalized = true
-        return Self.makeResult(
-            url: url,
-            config: config,
-            first: first,
-            lastRaw: lastAppendedPTS,
-            paused: pausedDuration,
-            width: outputWidth,
-            height: outputHeight
-        )
     }
 
     private static func makeResult(
@@ -716,8 +714,14 @@ final class RecordingEngine: @unchecked Sendable {
         )
     }
 
-    private static func fileSize(at url: URL) -> Int64 {
-        (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.int64Value ?? 0
+    /// A moved/truncated mp4 without a moov atom reports a non-numeric or zero
+    /// duration — this is a cheap, real check that finishWriting actually landed,
+    /// unlike trusting byte count alone.
+    nonisolated static func isFinishedAsset(at url: URL) -> Bool {
+        let asset = AVURLAsset(url: url)
+        guard asset.isReadable else { return false }
+        let duration = asset.duration
+        return CMTIME_IS_NUMERIC(duration) && duration.seconds > 0
     }
 
     private func clearWriterStateBounded() async {
@@ -1093,27 +1097,32 @@ final class RecordingEngine: @unchecked Sendable {
 private final class StreamOutputProxy: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
     /// Unowned: proxy lifetime is strictly bound to the owning engine session.
     private unowned let engine: RecordingEngine
+    /// The engine session this proxy was registered under — lets the engine drop
+    /// callbacks from a zombie stream whose fire-and-forget `stopCapture()` never
+    /// returned before a new recording started.
+    private let generation: UInt64
 
-    init(engine: RecordingEngine) {
+    init(engine: RecordingEngine, generation: UInt64) {
         self.engine = engine
+        self.generation = generation
     }
 
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         // Invoked on `engine.pipelineQueue` — process synchronously, no per-frame Task.
         switch type {
         case .screen:
-            engine.enqueueScreenSample(sampleBuffer)
+            engine.enqueueScreenSample(sampleBuffer, generation: generation)
         case .audio:
-            engine.processSystemAudioSample(sampleBuffer)
+            engine.processSystemAudioSample(sampleBuffer, generation: generation)
         case .microphone:
-            engine.processMicrophoneSample(sampleBuffer)
+            engine.processMicrophoneSample(sampleBuffer, generation: generation)
         @unknown default:
             break
         }
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
-        engine.handleStreamStopped(error: error)
+        engine.handleStreamStopped(error: error, generation: generation)
     }
 }
 

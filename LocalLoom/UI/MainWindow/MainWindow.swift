@@ -180,6 +180,7 @@ struct MainWindow: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(LoomTheme.record)
+            .disabled(session.isBusy)
         } else if isNewRecording {
             Button {
                 Task { await session.start(engine: engine, config: config, store: store) }

@@ -54,7 +54,10 @@ final class RecordingSessionController {
     }
 
     func stop(engine: RecordingEngine, store: RecordingStore) async {
-        guard engine.phase == .recording || engine.phase == .paused else { return }
+        // `engine.phase` only flips to `.idle` at the end of teardown (up to ~12s),
+        // so a second Stop click during that window would still pass a phase-only
+        // guard and open a duplicate Save panel for the same result.
+        guard !isBusy, engine.phase == .recording || engine.phase == .paused else { return }
         errorMessage = nil
         isBusy = true
         defer { isBusy = false }
