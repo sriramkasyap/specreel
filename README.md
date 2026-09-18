@@ -6,10 +6,10 @@
 
 **A native, local-first screen recorder for macOS.**
 
-[![Platform](https://img.shields.io/badge/platform-macOS%2015%2B-0F7355?style=flat-square)](#requirements)
-[![Swift](https://img.shields.io/badge/Swift-5-E3292E?style=flat-square&logo=swift&logoColor=white)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-macOS%2015%2B-0F7355?style=flat-square)](#-requirements)
+[![Swift](https://img.shields.io/badge/Swift-5-E3292E?style=flat-square&logo=swift&logoColor=white)](#-requirements)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-0F7355?style=flat-square)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-68%20passing-E3292E?style=flat-square)](#contributing)
+[![Tests](https://img.shields.io/badge/tests-68%20passing-E3292E?style=flat-square)](#-contributing)
 
 </div>
 
@@ -39,9 +39,15 @@ Think of it as a local-first Loom alternative for people who just want the file.
 | Xcode | 16.0 |
 | [XcodeGen](https://github.com/yonaskolb/XcodeGen) | 2.x (`brew install xcodegen`) |
 
-There are no prebuilt releases yet, so you build from source.
-
 ## 📦 Installation
+
+### Option 1: Download a release
+
+Grab the latest `Specreel-vX.Y.Z.zip` from [Releases](../../releases), unzip it, and drag `Specreel.app` to `/Applications`.
+
+It's signed ad-hoc, not notarized, so **macOS will call it an app from an unidentified developer** the first time you open it. Right-click (Control-click) `Specreel.app` → **Open** → **Open** again on the dialog. You only need to do this once.
+
+### Option 2: Build from source
 
 ```bash
 git clone <this-repo-url> specreel
@@ -164,6 +170,29 @@ scripts/dev.sh            build | run | release | test | open
 
 The one third-party dependency is [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) (MIT), pulled in by Swift Package Manager.
 
+## 🚢 Releasing
+
+Pushing a `v*` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds a Release configuration on a macOS GitHub Actions runner, zips `Specreel.app`, and publishes it to [Releases](../../releases). No secrets are involved — it signs ad-hoc, the same as a local build with no Apple Developer account.
+
+1. Bump `MARKETING_VERSION` in `project.yml` (and `CURRENT_PROJECT_VERSION` if you want a distinct build number).
+2. Commit it: `git commit -am "chore: bump version to X.Y.Z"`.
+3. Tag and push:
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+4. Watch the run under the repo's **Actions** tab. When it finishes, the zip is on the **Releases** page.
+
+### Removing the Gatekeeper warning
+
+Ad-hoc signing means people see an "unidentified developer" prompt on first launch (harmless — see [Installation](#-installation)). To remove it entirely:
+
+1. Enroll in the [Apple Developer Program](https://developer.apple.com/programs/) ($99/year) and create a **Developer ID Application** certificate (Xcode → Settings → Accounts, or [developer.apple.com](https://developer.apple.com/account/resources/certificates/list)).
+2. Export it as a `.p12`, base64-encode it, and add it as a repo secret (`Settings → Secrets and variables → Actions`) along with an [app-specific password](https://support.apple.com/en-us/102654) or API key for `notarytool`.
+3. Update the workflow to import the certificate, sign with `CODE_SIGN_IDENTITY: "Developer ID Application: <name> (<team>)"`, and add a step that runs `xcrun notarytool submit --wait` on the zip before publishing it.
+
+This repo doesn't do that yet — see [Known gaps](#known-gaps--good-first-issues).
+
 ## 🤝 Contributing
 
 Contributions are welcome: bug reports, fixes, and features.
@@ -184,7 +213,7 @@ The project uses Swift strict concurrency (`SWIFT_STRICT_CONCURRENCY = complete`
 ### Known gaps / good first issues
 
 - A global start/stop hotkey is stubbed in `Capture/HotKeyManager.swift` but not wired into the app or given a settings UI.
-- No prebuilt, notarized release yet.
+- Releases are ad-hoc signed, not notarized (see [Releasing](#-releasing)) — wiring up a Developer ID cert + `notarytool` in CI would remove the Gatekeeper warning.
 
 ## 📄 License
 

@@ -1,0 +1,56 @@
+name: Release
+
+# Builds an ad-hoc-signed Specreel.app and publishes it as a GitHub Release
+# whenever a `vX.Y.Z` tag is pushed. See README → Releasing.
+#
+# No signing secrets are needed: the default Config/Signing.xcconfig signs
+# ad-hoc, the same as a local build with no Apple Developer account.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate -s project.yml
+
+      - name: Build Release
+        run: |
+          xcodebuild build \
+            -project Specreel.xcodeproj \
+            -scheme Specreel \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            SYMROOT="${{ github.workspace }}/build"
+
+      - name: Zip the app bundle
+        run: |
+          cd build/Release
+          ditto -c -k --sequesterRsrc --keepParent Specreel.app \
+            "${{ github.workspace }}/Specreel-${{ github.ref_name }}.zip"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "Specreel-${{ github.ref_name }}.zip" \
+            --title "Specreel ${{ github.ref_name }}" \
+            --generate-notes \
+            --notes $'This build is signed ad-hoc, not notarized by Apple, so macOS Gatekeeper will flag it as from an unidentified developer on first launch.\n\n**To open it:** right-click (or Control-click) Specreel.app → **Open** → **Open** again on the confirmation dialog. You only need to do this once.\n\nSee the README’s Installation section for build-from-source instructions.'
