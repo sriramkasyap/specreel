@@ -1,5 +1,16 @@
 # Specreel — Decision Log
 
+## 2026-09-18 11:58 — open-source readiness audit + README
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| Medium | "Remove both" implemented as untrack + gitignore `.agent/`, and moved `docs/*` to local-only `.agent/docs/` instead of deleting | .gitignore, .agent/ | Keeps your private notes and lets the decision-log workflow keep writing to `.agent/` without it ever being published | partially linked |
+| Medium | Default signing switched to ad-hoc via `Config/Signing.xcconfig`; your identity moved to gitignored `Config/Local.xcconfig` (`#include?`) | project.yml, Config/, project.pbxproj | Hardcoded email/team made the repo unbuildable for others and leaked your email; your builds keep the same signature (verified) | unlinked |
+| Medium | Left git history untouched (it still contains the email/Team ID in old project.yml/OPERATOR.md) | git history | Not secrets (they're embedded in any signed binary); rewriting history is destructive and yours to decide | unlinked |
+| High | Kept bundle ID `dev.yagna.specreel` | project.yml | Bundle IDs are public, and changing it resets TCC grants | unlinked |
+| High | README omits the global hotkey and lists it as a known gap | README.md | `HotKeyManager` is never instantiated and has no default or UI | unlinked |
+| High | Used canonical GNU GPL-3.0 text (sha256 3972dc97…) | LICENSE | You picked GPL-3.0; the verbatim text is required | linked |
+
 ## 2026-09-18 11:40 — Renamed LocalLoom to Specreel and applied the brand
 
 | Confidence | Decision | Where | Reasoning | Spec link |

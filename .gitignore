@@ -30,3 +30,10 @@ graphify-out/
 *.mobileprovision
 .env
 .env.*
+
+# Private working notes (agent scaffolding, planning docs) — kept local only
+.agent/
+agent-transcripts/
+
+# Per-developer signing overrides (see README → Code signing)
+Config/Local.xcconfig
