@@ -778,7 +778,18 @@ final class RecordingEngine: @unchecked Sendable {
         // Do not await stopCapture — it has been observed to never return, and
         // structured timeouts still join the hung child. isStopping already drops samples.
         if let scStream {
-            Task { try? await scStream.stopCapture() }
+            engineLog.notice("teardown: calling stopCapture (fire-and-forget)")
+            Task {
+                let start = DispatchTime.now()
+                do {
+                    try await scStream.stopCapture()
+                    let ms = (DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000
+                    engineLog.notice("teardown: stopCapture completed after \(ms, privacy: .public)ms")
+                } catch {
+                    let ms = (DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000
+                    engineLog.notice("teardown: stopCapture threw after \(ms, privacy: .public)ms: \(String(describing: error), privacy: .public)")
+                }
+            }
         }
 
         let session = captureSession
