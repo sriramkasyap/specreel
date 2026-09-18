@@ -157,9 +157,6 @@ final class RecordingEngine: @unchecked Sendable {
         set { stateLock.withLock { _isStopping = newValue } }
     }
     private var writerFinalized = false
-    /// pipelineQueue-confined: true once at least one audio sample has been
-    /// appended. Used at finalize time to avoid the empty-audio-track hang.
-    private var didAppendAudio = false
     /// pipelineQueue-confined diagnostic counters, logged at finalize time.
     private var appendedVideoFrameCount = 0
     private var appendedAudioSampleCount = 0
@@ -212,7 +209,6 @@ final class RecordingEngine: @unchecked Sendable {
         screenDrainScheduled = false
         isStopping = false
         writerFinalized = false
-        didAppendAudio = false
         appendedVideoFrameCount = 0
         appendedAudioSampleCount = 0
         compositedFrameCount = 0
@@ -487,7 +483,6 @@ final class RecordingEngine: @unchecked Sendable {
             }
             if let timed = Self.makeSampleBuffer(from: mixed, pts: adjustedPTS) {
                 if audioInput.append(timed) {
-                    didAppendAudio = true
                     appendedAudioSampleCount += 1
                 }
             }
@@ -641,13 +636,6 @@ final class RecordingEngine: @unchecked Sendable {
                 }
 
                 self.writerFinalized = true
-                // Known AVAssetWriter gotcha: finishWriting can hang forever when an
-                // audio input was added but never received a single sample. Feed one
-                // silent buffer so the track isn't empty before marking it finished.
-                if let audioInput = self.audioInput, !self.didAppendAudio,
-                   let silent = Self.makeSilentAudioSampleBuffer(pts: first!) {
-                    audioInput.append(silent)
-                }
                 self.videoInput?.markAsFinished()
                 self.audioInput?.markAsFinished()
 
@@ -1064,16 +1052,6 @@ final class RecordingEngine: @unchecked Sendable {
         }
 
         return sc
-    }
-
-    /// A short zero-filled buffer for the empty-audio-track finishWriting hang
-    /// workaround — `AVAudioPCMBuffer` is zeroed on allocation, so no explicit fill.
-    nonisolated static func makeSilentAudioSampleBuffer(pts: CMTime) -> CMSampleBuffer? {
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: AudioMixer.mixFormat, frameCapacity: 1024) else {
-            return nil
-        }
-        buffer.frameLength = 1024
-        return makeSampleBuffer(from: buffer, pts: pts)
     }
 
     nonisolated static func makeSampleBuffer(from pcm: AVAudioPCMBuffer, pts: CMTime) -> CMSampleBuffer? {
