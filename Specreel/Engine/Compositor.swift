@@ -185,24 +185,28 @@ final class Compositor: @unchecked Sendable {
         let expand = borderW
         if circular {
             let diameter = outerSize
-            let center = CIVector(x: diameter / 2, y: diameter / 2)
-            guard let ring = CIFilter(name: "CIRadialGradient") else { return image }
-            ring.setValue(center, forKey: kCIInputCenterKey)
-            ring.setValue(diameter / 2 - expand, forKey: "inputRadius0")
-            ring.setValue(diameter / 2, forKey: "inputRadius1")
-            ring.setValue(borderColor, forKey: "inputColor0")
-            ring.setValue(CIColor(red: 0, green: 0, blue: 0, alpha: 0), forKey: "inputColor1")
-            // Inner hole: white→transparent inverted — simpler: composite image over solid circle.
-            guard let solid = CIFilter(name: "CIRadialGradient") else { return image }
-            solid.setValue(center, forKey: kCIInputCenterKey)
-            solid.setValue(0, forKey: "inputRadius0")
-            solid.setValue(diameter / 2, forKey: "inputRadius1")
-            solid.setValue(borderColor, forKey: "inputColor0")
-            solid.setValue(borderColor, forKey: "inputColor1")
-            if let disc = solid.outputImage?.cropped(to: CGRect(origin: .zero, size: CGSize(width: size, height: size))) {
-                return image.composited(over: disc)
+            let radius = diameter / 2
+            let center = CIVector(x: radius, y: radius)
+            // Solid disc the same size as the (already circularly-masked) pip, sitting
+            // behind it. CIRadialGradient's output isn't transparent past inputRadius1 —
+            // it keeps painting inputColor1 to infinity — so without masking that away
+            // ourselves, this "disc" filled the entire square canvas with opaque
+            // borderColor, i.e. the white rectangle behind the webcam bubble.
+            guard let gradient = CIFilter(name: "CIRadialGradient") else { return image }
+            gradient.setValue(center, forKey: kCIInputCenterKey)
+            gradient.setValue(radius - 0.5, forKey: "inputRadius0")
+            gradient.setValue(radius, forKey: "inputRadius1")
+            gradient.setValue(CIColor(red: 1, green: 1, blue: 1, alpha: 1), forKey: "inputColor0")
+            gradient.setValue(CIColor(red: 0, green: 0, blue: 0, alpha: 0), forKey: "inputColor1")
+            guard let discMask = gradient.outputImage?.cropped(to: CGRect(x: 0, y: 0, width: diameter, height: diameter)) else {
+                return image
             }
-            return image
+            let solidColor = CIImage(color: borderColor).cropped(to: CGRect(x: 0, y: 0, width: diameter, height: diameter))
+            let disc = solidColor.applyingFilter("CIBlendWithMask", parameters: [
+                kCIInputBackgroundImageKey: CIImage.empty(),
+                kCIInputMaskImageKey: discMask
+            ])
+            return image.composited(over: disc)
         } else {
             let rect = CIImage(color: borderColor)
                 .cropped(to: CGRect(x: -expand, y: -expand, width: size + expand * 2, height: size + expand * 2))
