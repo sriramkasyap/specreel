@@ -5,6 +5,9 @@ import CoreMedia
 import CoreVideo
 import AppKit
 import QuartzCore
+import os.log
+
+private let engineLog = Logger(subsystem: "com.localloom.app", category: "RecordingEngine")
 
 // MARK: - Public result / state
 
@@ -672,7 +675,12 @@ final class RecordingEngine: @unchecked Sendable {
             // its own once the queue frees up and quietly finalizes/cancels there.
             throw RecordingEngineError.writerFailed("Timed out finalizing the recording")
         case .ready(let request):
-            let finished = await Self.finishWritingBounded(request.writer, seconds: 8)
+            // Widened from 8s: Console logging (see finishWritingBounded) showed
+            // finishWriting's completion consistently landing right at/after an 8s
+            // bound, which reads as "slow" rather than a true hang. Give it more
+            // room while we confirm the real completion time.
+            engineLog.notice("finalize: calling finishWriting, status=\(request.writer.status.rawValue, privacy: .public)")
+            let finished = await Self.finishWritingBounded(request.writer, seconds: 25)
             if !finished {
                 // Don't cancelWriting while finishWriting is still in flight — that
                 // can crash. The file may still be missing its moov atom even if it
@@ -804,15 +812,23 @@ final class RecordingEngine: @unchecked Sendable {
 
     /// `finishWriting` is async and has been observed never to call back (especially
     /// when an audio input was added but received no samples). Bound the wait without
-    /// joining the hung callback.
+    /// joining the hung callback. Logs whichever side wins — including a late
+    /// completion after the bound already gave up — so Console shows the real
+    /// elapsed time instead of us guessing at it.
     private static func finishWritingBounded(_ writer: AVAssetWriter, seconds: TimeInterval) async -> Bool {
-        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+        let start = DispatchTime.now()
+        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
             let gate = OnceGate()
             writer.finishWriting {
-                gate.go { cont.resume(returning: true) }
+                let elapsedMs = (DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000
+                let won = gate.go { cont.resume(returning: true) }
+                engineLog.notice("finishWriting completion fired after \(elapsedMs, privacy: .public)ms, status=\(writer.status.rawValue, privacy: .public), boundWon=\(won, privacy: .public)")
             }
             DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + seconds) {
-                gate.go { cont.resume(returning: false) }
+                let won = gate.go { cont.resume(returning: false) }
+                if won {
+                    engineLog.notice("finishWriting bound (\(seconds, privacy: .public)s) expired first, status=\(writer.status.rawValue, privacy: .public)")
+                }
             }
         }
     }
@@ -1174,11 +1190,13 @@ private final class OnceGate: @unchecked Sendable {
     private let lock = NSLock()
     private var done = false
 
-    func go(_ body: () -> Void) {
+    @discardableResult
+    func go(_ body: () -> Void) -> Bool {
         lock.lock()
         let shouldRun = !done
         if shouldRun { done = true }
         lock.unlock()
         if shouldRun { body() }
+        return shouldRun
     }
 }
