@@ -160,6 +160,10 @@ final class RecordingEngine: @unchecked Sendable {
     /// pipelineQueue-confined: true once at least one audio sample has been
     /// appended. Used at finalize time to avoid the empty-audio-track hang.
     private var didAppendAudio = false
+    /// pipelineQueue-confined diagnostic counters, logged at finalize time.
+    private var appendedVideoFrameCount = 0
+    private var appendedAudioSampleCount = 0
+    private var compositedFrameCount = 0
 
     /// Bumped on every `start()`. Sample/delegate callbacks carry the generation
     /// they were registered under so a zombie `SCStream` still draining from a
@@ -209,6 +213,9 @@ final class RecordingEngine: @unchecked Sendable {
         isStopping = false
         writerFinalized = false
         didAppendAudio = false
+        appendedVideoFrameCount = 0
+        appendedAudioSampleCount = 0
+        compositedFrameCount = 0
         let generation = currentGeneration + 1
         currentGeneration = generation
         await publishElapsed(0)
@@ -435,6 +442,7 @@ final class RecordingEngine: @unchecked Sendable {
         if activeConfig?.includeWebcam == true, let webcam = webcamLatch.current() {
             do {
                 frameToWrite = try compositor.composite(screen: imageBuffer, webcam: webcam)
+                compositedFrameCount += 1
             } catch {
                 frameToWrite = imageBuffer
             }
@@ -443,6 +451,7 @@ final class RecordingEngine: @unchecked Sendable {
         }
 
         if adaptor.append(frameToWrite, withPresentationTime: adjustedPTS) {
+            appendedVideoFrameCount += 1
             lastAppendedPTS = rawPTS
         }
     }
@@ -479,6 +488,7 @@ final class RecordingEngine: @unchecked Sendable {
             if let timed = Self.makeSampleBuffer(from: mixed, pts: adjustedPTS) {
                 if audioInput.append(timed) {
                     didAppendAudio = true
+                    appendedAudioSampleCount += 1
                 }
             }
         } catch {
@@ -582,6 +592,9 @@ final class RecordingEngine: @unchecked Sendable {
             let paused: CMTime
             let width: Int
             let height: Int
+            let videoFrames: Int
+            let audioSamples: Int
+            let compositedFrames: Int
         }
 
         enum Prep {
@@ -646,7 +659,10 @@ final class RecordingEngine: @unchecked Sendable {
                     lastRaw: lastRaw,
                     paused: paused,
                     width: width,
-                    height: height
+                    height: height,
+                    videoFrames: self.appendedVideoFrameCount,
+                    audioSamples: self.appendedAudioSampleCount,
+                    compositedFrames: self.compositedFrameCount
                 )
                 // Detach inputs/adaptor; keep writer alive for finishWriting.
                 self.videoInput = nil
@@ -679,7 +695,7 @@ final class RecordingEngine: @unchecked Sendable {
             // finishWriting's completion consistently landing right at/after an 8s
             // bound, which reads as "slow" rather than a true hang. Give it more
             // room while we confirm the real completion time.
-            engineLog.notice("finalize: calling finishWriting, status=\(request.writer.status.rawValue, privacy: .public)")
+            engineLog.notice("finalize: calling finishWriting, status=\(request.writer.status.rawValue, privacy: .public), videoFrames=\(request.videoFrames, privacy: .public), audioSamples=\(request.audioSamples, privacy: .public), compositedFrames=\(request.compositedFrames, privacy: .public), webcam=\(request.config.includeWebcam, privacy: .public), mic=\(request.config.includeMic, privacy: .public), sysAudio=\(request.config.includeSystemAudio, privacy: .public), size=\(request.width, privacy: .public)x\(request.height, privacy: .public)")
             let finished = await Self.finishWritingBounded(request.writer, seconds: 25)
             if !finished {
                 // Don't cancelWriting while finishWriting is still in flight — that
