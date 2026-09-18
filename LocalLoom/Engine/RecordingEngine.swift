@@ -691,12 +691,10 @@ final class RecordingEngine: @unchecked Sendable {
             // its own once the queue frees up and quietly finalizes/cancels there.
             throw RecordingEngineError.writerFailed("Timed out finalizing the recording")
         case .ready(let request):
-            // Widened from 8s: Console logging (see finishWritingBounded) showed
-            // finishWriting's completion consistently landing right at/after an 8s
-            // bound, which reads as "slow" rather than a true hang. Give it more
-            // room while we confirm the real completion time.
             engineLog.notice("finalize: calling finishWriting, status=\(request.writer.status.rawValue, privacy: .public), videoFrames=\(request.videoFrames, privacy: .public), audioSamples=\(request.audioSamples, privacy: .public), compositedFrames=\(request.compositedFrames, privacy: .public), webcam=\(request.config.includeWebcam, privacy: .public), mic=\(request.config.includeMic, privacy: .public), sysAudio=\(request.config.includeSystemAudio, privacy: .public), size=\(request.width, privacy: .public)x\(request.height, privacy: .public)")
-            let finished = await Self.finishWritingBounded(request.writer, seconds: 25)
+            // 8s is generous now that the real cause (see makeSampleBuffer) is
+            // fixed — finishWriting completes in well under 100ms in practice.
+            let finished = await Self.finishWritingBounded(request.writer, seconds: 8)
             if !finished {
                 // Don't cancelWriting while finishWriting is still in flight — that
                 // can crash. The file may still be missing its moov atom even if it
@@ -837,11 +835,12 @@ final class RecordingEngine: @unchecked Sendable {
         }
     }
 
-    /// `finishWriting` is async and has been observed never to call back (especially
-    /// when an audio input was added but received no samples). Bound the wait without
-    /// joining the hung callback. Logs whichever side wins — including a late
-    /// completion after the bound already gave up — so Console shows the real
-    /// elapsed time instead of us guessing at it.
+    /// `finishWriting` is async; a malformed CMSampleBuffer (missing a data-ready
+    /// signal — see makeSampleBuffer) used to make its completion handler never
+    /// fire at all. Kept bounded as a safety net against any future writer
+    /// wedge, without joining a hung callback. Logs whichever side wins —
+    /// including a late completion after the bound already gave up — so
+    /// Console shows the real elapsed time instead of us guessing at it.
     private static func finishWritingBounded(_ writer: AVAssetWriter, seconds: TimeInterval) async -> Bool {
         let start = DispatchTime.now()
         return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
@@ -1154,6 +1153,14 @@ final class RecordingEngine: @unchecked Sendable {
         guard CMSampleBufferSetDataBuffer(sampleBuffer, newValue: blockBuffer) == noErr else {
             return nil
         }
+        // ROOT CAUSE of the finishWriting hang: the buffer was created with
+        // dataReady: false and no makeDataReadyCallback. SetDataBuffer attaches
+        // the block buffer but doesn't clear that pending-ready state, so the
+        // writer's finalize path blocks forever waiting for a "ready" signal
+        // that never comes. Confirmed via a standalone AVAssetWriter repro
+        // (audio-only, PCM and AAC, single- and multi-append) — every variant
+        // hung until this call was added, then finished in <100ms every time.
+        CMSampleBufferSetDataReady(sampleBuffer)
         return sampleBuffer
     }
 }
