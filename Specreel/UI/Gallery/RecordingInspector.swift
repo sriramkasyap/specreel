@@ -51,6 +51,7 @@ struct RecordingInspector: View {
                     HStack(spacing: 8) {
                         Button("Reveal") { try? store.revealInFinder(id: entry.id) }
                         Button("Copy Path") { try? store.copyPath(id: entry.id) }
+                        ShareLink(item: entry.videoURL) { Text("Share…") }
                         Spacer()
                         Button("Trash", role: .destructive) { confirmDelete = true }
                     }

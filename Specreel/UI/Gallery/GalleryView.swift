@@ -157,6 +157,9 @@ struct GalleryView: View {
 
     @ViewBuilder
     private func contextMenu(for entry: RecordingEntry) -> some View {
+        ShareLink(item: entry.videoURL) {
+            Text("Share…")
+        }
         Button("Reveal in Finder") {
             try? store.revealInFinder(id: entry.id)
         }
