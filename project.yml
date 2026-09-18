@@ -5,15 +5,13 @@ options:
     macOS: "15.0"
   xcodeVersion: "16.0"
   createIntermediateGroups: true
+configFiles:
+  Debug: Config/Signing.xcconfig
+  Release: Config/Signing.xcconfig
 settings:
   base:
     SWIFT_VERSION: "5.0"
     MACOSX_DEPLOYMENT_TARGET: "15.0"
-    CODE_SIGN_STYLE: Manual
-    CODE_SIGN_IDENTITY: "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)"
-    CODE_SIGN_IDENTITY[sdk=macosx*]: "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)"
-    DEVELOPMENT_TEAM: X93VLP8U9X
-    PROVISIONING_PROFILE_SPECIFIER: ""
     ENABLE_HARDENED_RUNTIME: YES
     ENABLE_APP_SANDBOX: NO
     COMBINE_HIDPI_IMAGES: YES
@@ -39,9 +37,6 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_FILE: Specreel/Info.plist
         CODE_SIGN_ENTITLEMENTS: Specreel/Specreel.entitlements
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "F0E68E2139D99E40A51186407C21E70CC3E43060"
-        DEVELOPMENT_TEAM: X93VLP8U9X
         ENABLE_HARDENED_RUNTIME: YES
         ENABLE_APP_SANDBOX: NO
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
@@ -66,9 +61,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.yagna.specreel.tests
         GENERATE_INFOPLIST_FILE: YES
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "F0E68E2139D99E40A51186407C21E70CC3E43060"
-        DEVELOPMENT_TEAM: X93VLP8U9X
   SpecreelIntegrationTests:
     type: bundle.unit-test
     platform: macOS
@@ -80,9 +72,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.yagna.specreel.integrationtests
         GENERATE_INFOPLIST_FILE: YES
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "F0E68E2139D99E40A51186407C21E70CC3E43060"
-        DEVELOPMENT_TEAM: X93VLP8U9X
 schemes:
   Specreel:
     build:

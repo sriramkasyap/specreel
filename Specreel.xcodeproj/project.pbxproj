@@ -93,6 +93,7 @@
 		9D15FF84A131679C16422089 /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
 		9E5709BEB9CDC5006DB68BF5 /* PipelineTeardownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineTeardownTests.swift; sourceTree = "<group>"; };
 		A87DE84034DB3969F81034B8 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		B29FF0EB450542E5459A1DFE /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		C29DBC6C74D67E8722CC9FA0 /* RegionSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionSelector.swift; sourceTree = "<group>"; };
 		C838FA214F7B08732C814D93 /* WebcamLatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamLatch.swift; sourceTree = "<group>"; };
 		CC9FFD303CF01BDA1AF82D55 /* SpecreelTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecreelTheme.swift; sourceTree = "<group>"; };
@@ -247,6 +248,7 @@
 		965ABF7D2266C7298EFAED75 = {
 			isa = PBXGroup;
 			children = (
+				C8DF2A75B9235D393939F75D /* Config */,
 				04EF0A8D508384E1491E1F3E /* Specreel */,
 				3DA0BDE4AB5B417D216DC03F /* SpecreelIntegrationTests */,
 				940AF055CD2DE47CE95C7E90 /* SpecreelTests */,
@@ -260,6 +262,14 @@
 				076186B9D2B1A10E39BFD230 /* PostRecordingPanel.swift */,
 			);
 			path = PostRecording;
+			sourceTree = "<group>";
+		};
+		C8DF2A75B9235D393939F75D /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				B29FF0EB450542E5459A1DFE /* Signing.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		D52822D4D14B8694814F933A /* MainWindow */ = {
@@ -357,15 +367,15 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					35327FDB55702C16207C3280 = {
-						DevelopmentTeam = X93VLP8U9X;
+						DevelopmentTeam = "";
 						ProvisioningStyle = Manual;
 					};
 					A4DAE8C6313E6EAA307ED7EC = {
-						DevelopmentTeam = X93VLP8U9X;
+						DevelopmentTeam = "";
 						ProvisioningStyle = Manual;
 					};
 					E62F5D8ED1F5D94CA8FA8F94 = {
-						DevelopmentTeam = X93VLP8U9X;
+						DevelopmentTeam = "";
 						ProvisioningStyle = Manual;
 					};
 				};
@@ -481,11 +491,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Specreel/Specreel.entitlements;
-				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = X93VLP8U9X;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -501,6 +508,7 @@
 		};
 		389AE298CD13ED84728B6F7D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B29FF0EB450542E5459A1DFE /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -532,13 +540,9 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)";
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = X93VLP8U9X;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -555,7 +559,6 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
@@ -567,10 +570,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = X93VLP8U9X;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -585,6 +585,7 @@
 		};
 		4606DC0AB916F48F545CC11F /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B29FF0EB450542E5459A1DFE /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -616,13 +617,9 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development: sriramkasyap.m.s@gmail.com (X93VLP8U9X)";
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = X93VLP8U9X;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -646,7 +643,6 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -659,11 +655,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Specreel/Specreel.entitlements;
-				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = X93VLP8U9X;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -681,10 +674,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = X93VLP8U9X;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -701,10 +691,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = X93VLP8U9X;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -721,10 +708,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_IDENTITY = F0E68E2139D99E40A51186407C21E70CC3E43060;
-				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = X93VLP8U9X;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
