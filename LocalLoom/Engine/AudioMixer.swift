@@ -115,27 +115,113 @@ final class AudioMixer: @unchecked Sendable {
         return output
     }
 
-    /// Convenience: convert `CMSampleBuffer` PCM into the mix format for one source,
-    /// apply that source's gain, and return a mono-source buffer (no summing).
-    /// Useful when the engine wants to feed sources independently then call `mix`.
-    func convertSystemSample(_ sampleBuffer: CMSampleBuffer) throws -> AVAudioPCMBuffer? {
-        guard let pcm = try Self.pcmBuffer(from: sampleBuffer) else { return nil }
-        return try convertSystem(pcm)
+    // MARK: - Timeline mixing
+
+    // System and mic arrive as separate callbacks with overlapping timestamps.
+    // Appending each straight to the writer serialises them (2s of recording →
+    // 4s of choppy audio), so each source is laid onto one shared 48 kHz
+    // timeline by its PTS and only spans both sources cover are emitted.
+
+    /// Jitter tolerated before a source is padded with silence or trimmed (10 ms).
+    static let jitterFrames = 480
+    /// A source this far behind the other is treated as silent (0.5 s).
+    static let maxLagFrames = 24_000
+
+    private var expectsSystem = false
+    private var expectsMic = false
+    private var anchor: CMTime?
+    /// Timeline frames already emitted; both FIFOs start at this frame.
+    private var emitted: Int64 = 0
+    private var systemFIFO: [[Float]] = [[], []]
+    private var micFIFO: [[Float]] = [[], []]
+
+    /// Call once per recording, before the first `push`.
+    func reset(expectsSystem: Bool, expectsMic: Bool) {
+        self.expectsSystem = expectsSystem
+        self.expectsMic = expectsMic
+        anchor = nil
+        emitted = 0
+        systemFIFO = [[], []]
+        micFIFO = [[], []]
     }
 
-    func convertMicSample(_ sampleBuffer: CMSampleBuffer) throws -> AVAudioPCMBuffer? {
+    /// Queue one source's audio at `pts`; returns whatever is now mixable, with its PTS.
+    func push(_ sampleBuffer: CMSampleBuffer, pts: CMTime, isMic: Bool) throws -> (AVAudioPCMBuffer, CMTime)? {
         guard let pcm = try Self.pcmBuffer(from: sampleBuffer) else { return nil }
-        return try convertMic(pcm)
+        return try push(pcm: pcm, pts: pts, isMic: isMic)
     }
 
-    /// Mix two `CMSampleBuffer`s (system + mic) in one call.
-    func mix(
-        systemSample: CMSampleBuffer?,
-        micSample: CMSampleBuffer?
-    ) throws -> AVAudioPCMBuffer? {
-        let systemPCM = try systemSample.flatMap { try Self.pcmBuffer(from: $0) }
-        let micPCM = try micSample.flatMap { try Self.pcmBuffer(from: $0) }
-        return try mix(systemPCM: systemPCM, micPCM: micPCM)
+    func push(pcm: AVAudioPCMBuffer, pts: CMTime, isMic: Bool) throws -> (AVAudioPCMBuffer, CMTime)? {
+        let converted = isMic ? try convertMic(pcm) : try convertSystem(pcm)
+        let anchor = self.anchor ?? pts
+        self.anchor = anchor
+        let start = Int64((CMTimeGetSeconds(CMTimeSubtract(pts, anchor)) * Self.sampleRate).rounded())
+        if isMic {
+            Self.place(converted, at: start, into: &micFIFO, emitted: emitted)
+        } else {
+            Self.place(converted, at: start, into: &systemFIFO, emitted: emitted)
+        }
+        return try drain(flush: false)
+    }
+
+    /// Emits everything still queued (the lagging source padded with silence). Call at stop.
+    func flush() throws -> (AVAudioPCMBuffer, CMTime)? {
+        try drain(flush: true)
+    }
+
+    /// Appends `pcm` so it lands at timeline frame `start`: pads a gap with silence,
+    /// trims overlap, so each source stays locked to its own timestamps.
+    private static func place(_ pcm: AVAudioPCMBuffer, at start: Int64, into fifo: inout [[Float]], emitted: Int64) {
+        guard let data = pcm.floatChannelData else { return }
+        let end = emitted + Int64(fifo[0].count)
+        let frames = Int(pcm.frameLength)
+        var skip = 0
+        if start - end > jitterFrames {
+            let gap = Int(start - end)
+            for ch in 0..<fifo.count { fifo[ch].append(contentsOf: repeatElement(0, count: gap)) }
+        } else if end - start > jitterFrames {
+            skip = min(frames, Int(end - start))
+        }
+        for ch in 0..<fifo.count {
+            fifo[ch].append(contentsOf: UnsafeBufferPointer(start: data[ch] + skip, count: frames - skip))
+        }
+    }
+
+    private func drain(flush: Bool) throws -> (AVAudioPCMBuffer, CMTime)? {
+        let sysCount = systemFIFO[0].count
+        let micCount = micFIFO[0].count
+        let count: Int
+        if expectsSystem && expectsMic && !flush {
+            let lead = max(sysCount, micCount)
+            // A stalled source (e.g. no system audio playing) must not hold the mic hostage.
+            count = lead - min(sysCount, micCount) > Self.maxLagFrames ? lead : min(sysCount, micCount)
+        } else {
+            count = max(sysCount, micCount)
+        }
+        guard count > 0, let anchor else { return nil }
+
+        let sys = expectsSystem ? try Self.takeFrames(count, from: &systemFIFO) : nil
+        let mic = expectsMic ? try Self.takeFrames(count, from: &micFIFO) : nil
+        guard let mixed = try mix(systemPCM: sys, micPCM: mic) else { return nil }
+        let pts = CMTimeAdd(anchor, CMTime(value: emitted, timescale: CMTimeScale(Self.sampleRate)))
+        emitted += Int64(count)
+        return (mixed, pts)
+    }
+
+    /// Removes `count` frames from `fifo` into a mix-format buffer, zero-padding a short FIFO.
+    private static func takeFrames(_ count: Int, from fifo: inout [[Float]]) throws -> AVAudioPCMBuffer {
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: mixFormat, frameCapacity: AVAudioFrameCount(count)) else {
+            throw AudioMixerError.bufferAllocationFailed
+        }
+        buffer.frameLength = AVAudioFrameCount(count)
+        guard let out = buffer.floatChannelData else { throw AudioMixerError.missingChannelData }
+        for ch in 0..<fifo.count {
+            let n = min(count, fifo[ch].count)
+            fifo[ch].withUnsafeBufferPointer { out[ch].update(from: $0.baseAddress!, count: n) }
+            (out[ch] + n).initialize(repeating: 0, count: count - n)
+            fifo[ch].removeFirst(n)
+        }
+        return buffer
     }
 
     /// Apply linear gain in-place to a non-interleaved float32 buffer (test helper / post path).

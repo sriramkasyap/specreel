@@ -1,5 +1,16 @@
 # Local Loom — Decision Log
 
+## 2026-09-18 11:20 — Fixed distorted audio when mic + system audio are both on
+
+| Confidence | Decision | Where | Reasoning | Spec link |
+|---|---|---|---|---|
+| Medium | A source more than 0.5 s behind the other is treated as silent (padded with zeros); its late samples are then trimmed | `AudioMixer.maxLagFrames` | Unverified whether ScreenCaptureKit stops sending system audio during silence; without this the mic would stall behind it indefinitely | unlinked |
+| Medium | Each source is locked to its own PTS: gaps > 10 ms are filled with silence, overlaps > 10 ms are trimmed | `AudioMixer.place` | Keeps audio in sync with video under clock drift / dropped callbacks, at the cost of an occasional tiny click | unlinked |
+| Medium | Mix into one track rather than writing system and mic as two separate audio tracks | `AudioMixer` / `RecordingEngine.processAudioSample` | Browsers and most players only play the first audio track; `AudioMixer` already existed to sum sources | unlinked |
+| Medium | Flush the mixer's queued tail (≤ ~0.5 s) at finalize, guarded by `isReadyForMoreMediaData` | `RecordingEngine` finalize prep | Avoids losing the last words of the mic when system audio stalled | unlinked |
+| High | Deleted unused `pendingSystemAudio`/`pendingMicAudio`, `convertSystemSample`/`convertMicSample`, `mix(systemSample:micSample:)` | `RecordingEngine.swift`, `AudioMixer.swift` | Written but never read / no callers after the change | unlinked |
+| High | Left the audio fix uncommitted pending a real recording test | working tree | Fix is verified by unit tests + repro, not yet on real hardware | partially linked |
+
 ## 2026-09-18 10:27 — Root-caused the "Timed out finishing the video file" hang
 
 | Confidence | Decision | Where | Reasoning | Spec link |

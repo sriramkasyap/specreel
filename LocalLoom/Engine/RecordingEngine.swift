@@ -139,10 +139,6 @@ final class RecordingEngine: @unchecked Sendable {
     private var recordingWallStart: Date?
     private var elapsedTickerTask: Task<Void, Never>?
 
-    // Pending audio samples waiting for the session to start (screen clock master).
-    private var pendingSystemAudio: CMSampleBuffer?
-    private var pendingMicAudio: CMSampleBuffer?
-
     /// Latest screen frame waiting to be drained (coalesce under load).
     private var pendingScreenSample: CMSampleBuffer?
     private var screenDrainScheduled = false
@@ -195,6 +191,7 @@ final class RecordingEngine: @unchecked Sendable {
         compositor.pipSettings = snapshot.pip
         audioMixer.systemGainDb = snapshot.systemAudioGainDb
         audioMixer.micGainDb = snapshot.micGainDb
+        audioMixer.reset(expectsSystem: snapshot.includeSystemAudio, expectsMic: snapshot.includeMic)
         webcamLatch.clear()
         compositor.resetPool()
 
@@ -203,8 +200,6 @@ final class RecordingEngine: @unchecked Sendable {
         pausedDuration = .zero
         pauseStartedAt = nil
         lastAppendedPTS = .zero
-        pendingSystemAudio = nil
-        pendingMicAudio = nil
         pendingScreenSample = nil
         screenDrainScheduled = false
         isStopping = false
@@ -463,10 +458,7 @@ final class RecordingEngine: @unchecked Sendable {
     private func processAudioSample(_ sampleBuffer: CMSampleBuffer, isMic: Bool, generation: UInt64) {
         guard generation == currentGeneration, !isStopping else { return }
         guard phase == .recording else { return }
-        guard sessionStarted else {
-            if isMic { pendingMicAudio = sampleBuffer } else { pendingSystemAudio = sampleBuffer }
-            return
-        }
+        guard sessionStarted else { return }
         guard let writer = assetWriter, writer.status == .writing,
               let audioInput, audioInput.isReadyForMoreMediaData else {
             return
@@ -476,12 +468,10 @@ final class RecordingEngine: @unchecked Sendable {
         let adjustedPTS = CMTimeSubtract(rawPTS, pausedDuration)
 
         do {
-            let systemSample: CMSampleBuffer? = isMic ? nil : sampleBuffer
-            let micSample: CMSampleBuffer? = isMic ? sampleBuffer : nil
-            guard let mixed = try audioMixer.mix(systemSample: systemSample, micSample: micSample) else {
+            guard let (mixed, mixedPTS) = try audioMixer.push(sampleBuffer, pts: adjustedPTS, isMic: isMic) else {
                 return
             }
-            if let timed = Self.makeSampleBuffer(from: mixed, pts: adjustedPTS) {
+            if let timed = Self.makeSampleBuffer(from: mixed, pts: mixedPTS) {
                 if audioInput.append(timed) {
                     appendedAudioSampleCount += 1
                 }
@@ -636,6 +626,13 @@ final class RecordingEngine: @unchecked Sendable {
                 }
 
                 self.writerFinalized = true
+                // Emit the mixer's queued tail (at most ~0.5 s when one source stalled).
+                if let audioInput = self.audioInput, audioInput.isReadyForMoreMediaData,
+                   let (tail, tailPTS) = try? self.audioMixer.flush(),
+                   let timed = Self.makeSampleBuffer(from: tail, pts: tailPTS),
+                   audioInput.append(timed) {
+                    self.appendedAudioSampleCount += 1
+                }
                 self.videoInput?.markAsFinished()
                 self.audioInput?.markAsFinished()
 

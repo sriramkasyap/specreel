@@ -161,4 +161,34 @@ final class AudioMixerTests: XCTestCase {
         let result = try mixer.mix(systemPCM: nil, micPCM: nil)
         XCTAssertNil(result)
     }
+
+    /// Regression: system + mic callbacks at the same PTS must sum onto one
+    /// timeline, not serialise (which doubled the audio length and garbled it).
+    func testPushOverlappingSourcesMixesOnOneTimeline() throws {
+        let mixer = AudioMixer(systemGainDb: 0, micGainDb: 0)
+        mixer.reset(expectsSystem: true, expectsMic: true)
+        let sys = try constantBuffer(value: 0.2)
+        let mic = try constantBuffer(value: 0.3)
+        var emittedFrames: AVAudioFrameCount = 0
+        for chunk in 0..<4 {
+            let pts = CMTime(value: CMTimeValue(chunk) * CMTimeValue(frameCount), timescale: 48_000)
+            XCTAssertNil(try mixer.push(pcm: sys, pts: pts, isMic: false), "must wait for the mic")
+            let (mixed, mixedPTS) = try XCTUnwrap(mixer.push(pcm: mic, pts: pts, isMic: true))
+            XCTAssertEqual(mixedPTS, pts)
+            assertSamples(mixed, equalTo: 0.5)
+            emittedFrames += mixed.frameLength
+        }
+        XCTAssertEqual(emittedFrames, 4 * frameCount)
+    }
+
+    func testPushPadsStalledSourceWithSilence() throws {
+        let mixer = AudioMixer(systemGainDb: 0, micGainDb: 0)
+        mixer.reset(expectsSystem: true, expectsMic: true)
+        let mic = try makeFloat32StereoBuffer(frames: AVAudioFrameCount(AudioMixer.maxLagFrames + 1)) { c0, c1, n in
+            for i in 0..<Int(n) { c0[i] = 0.3; c1[i] = 0.3 }
+        }
+        let (mixed, _) = try XCTUnwrap(mixer.push(pcm: mic, pts: .zero, isMic: true))
+        XCTAssertEqual(Int(mixed.frameLength), AudioMixer.maxLagFrames + 1)
+        assertSamples(mixed, equalTo: 0.3)
+    }
 }
